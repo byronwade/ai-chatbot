@@ -1,122 +1,122 @@
 import { auth } from '@/app/(auth)/auth';
 import { logWithTimestamp } from '@/lib/utils';
-import { type CoreMessage } from 'ai';
-import { getModel, type ModelId } from '@/lib/ai/models';
-import { SEOAgent } from '@/lib/ai/agent';
-
-// Force the route to be dynamic and allow streaming responses
-export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
-
-const systemPrompt = `You are a friendly and helpful AI assistant specialized in website analysis and SEO optimization.`;
-
-interface ChatMessage {
-  id?: string;
-  content: string;
-  role: 'user' | 'assistant' | 'system';
-  createdAt?: Date;
-}
-
-interface ChatRequest {
-  messages: ChatMessage[];
-  modelId: string;
-  chatId: string;
-}
-
-const TOOL_SUPPORTED_MODELS = ['llama2', 'codellama', 'mistral'] as const;
+import { type CoreMessage } from "ai";
+import { getModel, type ModelId } from "@/lib/ai/models";
+import { SEOAgent } from "@/lib/ai/agent";
+import { saveMessages, deleteChatById, saveChat } from "@/lib/db/queries";
+import { generateId } from "ai";
+import { eq, and } from "drizzle-orm";
+import { message } from "@/lib/db/schema";
+import { db } from "@/lib/db";
 
 export async function POST(request: Request) {
-  try {
-    logWithTimestamp('Received POST request to /api/chat');
-    const json = await request.json() as ChatRequest;
-    logWithTimestamp('Request payload:', json);
+	try {
+		const json = await request.json();
+		const { messages, modelId, chatId } = json;
 
-    const { messages, modelId, chatId } = json;
+		// Get the session
+		const session = await auth();
+		if (!session?.user?.id) {
+			return new Response("Unauthorized", { status: 401 });
+		}
 
-    // Get the session
-    const session = await auth();
-    if (!session?.user?.id) {
-      return new Response('Unauthorized', { status: 401 });
-    }
+		// Save chat if new
+		try {
+			await saveChat({
+				id: chatId,
+				title: "New Chat",
+				userId: session.user.id,
+			});
+		} catch (error: any) {
+			if (error?.code !== "SQLITE_CONSTRAINT_PRIMARYKEY") {
+				throw error;
+			}
+		}
 
-    // Convert messages to CoreMessage format
-    const systemMessage: CoreMessage = {
-      role: 'system',
-      content: systemPrompt,
-    };
+		// Save user message
+		const latestMessage = messages[messages.length - 1];
+		if (latestMessage?.role === "user") {
+			await saveMessages({
+				messages: [
+					{
+						id: generateId(),
+						chatId,
+						content: latestMessage.content,
+						role: latestMessage.role,
+						createdAt: new Date(),
+						userId: session.user.id,
+					},
+				],
+			});
+		}
 
-    logWithTimestamp('Converting messages to CoreMessage format');
-    const convertedMessages: CoreMessage[] = messages.map((msg: ChatMessage) => {
-      const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-      return { role: msg.role, content } as CoreMessage;
-    });
+		// Create message ID for streaming
+		const messageId = generateId();
 
-    const coreMessages: CoreMessage[] = [systemMessage, ...convertedMessages];
-    logWithTimestamp('Prepared messages for model:', { 
-      messageCount: coreMessages.length,
-      roles: coreMessages.map(m => m.role)
-    });
+		// Initialize empty assistant message
+		await saveMessages({
+			messages: [
+				{
+					id: messageId,
+					chatId,
+					content: "",
+					role: "assistant",
+					createdAt: new Date(),
+					userId: session.user.id,
+				},
+			],
+		});
 
-    try {
-      // Get the model configuration
-      const model = getModel(modelId as ModelId);
-      logWithTimestamp('[AI Info] Using model:', model);
+		// Create agent and get response
+		const agent = new SEOAgent({ modelId: modelId as ModelId, chatId, userId: session.user.id });
+		const stream = await agent.chat(messages as CoreMessage[]);
 
-      // Create agent instance with required IDs
-      const agent = new SEOAgent({
-        modelId: model.id,
-        chatId,
-        userId: session.user.id,
-        disableTools: !model.supportsTools
-      });
+		// Return streaming response
+		return stream.response;
+	} catch (error) {
+		console.error("Error in chat route:", error);
+		return new Response(
+			JSON.stringify({
+				error: error instanceof Error ? error.message : "An unexpected error occurred",
+			}),
+			{ status: 500 }
+		);
+	}
+}
 
-      // Stream the response using the agent
-      const result = await agent.chat(coreMessages);
+export async function DELETE(request: Request) {
+	try {
+		const { searchParams } = new URL(request.url);
+		const id = searchParams.get("id");
 
-      // Return the stream response
-      return result;
+		if (!id) {
+			return new Response("Chat ID is required", { status: 400 });
+		}
 
-    } catch (error) {
-      logWithTimestamp('Error streaming response:', error);
-      
-      // Check for specific error types
-      if (error instanceof Error) {
-        // Handle tool support error
-        if (error.message?.includes('does not support tools')) {
-          return new Response(
-            JSON.stringify({
-              error: 'Model Tool Support Error',
-              message: `The selected model "${modelId}" does not support advanced tools. Please switch to one of these models that support tools: ${TOOL_SUPPORTED_MODELS.join(', ')}.`,
-              details: error.message,
-              type: 'TOOL_SUPPORT_ERROR',
-              supportedModels: TOOL_SUPPORTED_MODELS
-            }),
-            { 
-              status: 400,
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-        }
-      }
-      
-      throw error;
-    }
+		// Get the session
+		const session = await auth();
+		if (!session?.user?.id) {
+			return new Response("Unauthorized", { status: 401 });
+		}
 
-  } catch (error) {
-    logWithTimestamp('Fatal error processing request:', error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'An unexpected error occurred',
-        type: 'GENERAL_ERROR'
-      }),
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-  }
+		logWithTimestamp("Deleting chat:", { chatId: id });
+		await deleteChatById({ id });
+		logWithTimestamp("Chat deleted successfully:", { chatId: id });
+
+		return new Response("Chat deleted successfully", { status: 200 });
+	} catch (error) {
+		logWithTimestamp("Error deleting chat:", error);
+		return new Response(
+			JSON.stringify({
+				error: error instanceof Error ? error.message : "An unexpected error occurred",
+				type: "DELETE_ERROR",
+			}),
+			{
+				status: 500,
+				headers: {
+					"Content-Type": "application/json",
+				},
+			}
+		);
+	}
 } 

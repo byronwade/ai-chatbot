@@ -30,14 +30,17 @@ export const chat = sqliteTable('Chat', {
 
 export type Chat = InferSelectModel<typeof chat>;
 
-export const message = sqliteTable('Message', {
-  id: text('id').primaryKey().notNull(),
-  chatId: text('chatId')
-    .notNull()
-    .references(() => chat.id),
-  role: text('role').notNull(),
-  content: blob('content', { mode: 'json' }).notNull(),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
+export const message = sqliteTable("Message", {
+	id: text("id").primaryKey().notNull(),
+	chatId: text("chatId")
+		.notNull()
+		.references(() => chat.id),
+	userId: text("userId")
+		.notNull()
+		.references(() => user.id),
+	role: text("role").notNull(),
+	content: blob("content", { mode: "json" }).notNull(),
+	createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
 });
 
 export type Message = InferSelectModel<typeof message>;

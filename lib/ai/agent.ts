@@ -1,204 +1,70 @@
-import { type CoreMessage, streamText, type LanguageModelV1, type LanguageModelV1CallOptions, type LanguageModelV1StreamPart } from 'ai';
-import { getModel, type ModelId, type AIModel } from './models';
-import { logWithTimestamp } from '../utils';
-import { tools } from './tools';
+import { ollama } from "ollama-ai-provider";
+import { generateText, type CoreMessage } from "ai";
+import { tools } from "./tools";
+import { getModel, type ModelId, type AIModel } from "./models";
 
 export interface SEOAgentOptions {
-  modelId: string;
-  chatId: string;
-  userId: string;
+	modelId: string;
+	chatId: string;
+	userId: string;
 }
 
 export class SEOAgent {
-  private model: AIModel;
-  private chatId: string;
-  private userId: string;
+	private model: AIModel;
 
-  constructor(options: SEOAgentOptions) {
-    if (!options.chatId || !options.userId) {
-      throw new Error('Chat ID and User ID are required');
-    }
+	constructor(options: SEOAgentOptions) {
+		this.model = getModel(options.modelId as ModelId);
+	}
 
-    this.chatId = options.chatId;
-    this.userId = options.userId;
-    this.model = getModel(options.modelId as ModelId);
+	async chat(messages: CoreMessage[]) {
+		try {
+			// Use streamText for proper streaming support
+			const result = await generateText({
+				model: ollama(this.model.apiIdentifier),
+				messages,
+				tools,
+				maxSteps: 5,
+				temperature: 0.7,
+				system: `You are an advanced AI agent specializing in SEO analysis and content optimization.
 
-    logWithTimestamp('[SEOAgent] Initializing agent', {
-      chatId: this.chatId,
-      modelId: options.modelId,
-      userId: this.userId
-    });
+Your capabilities:
+1. Analyze websites and provide SEO insights when requested using the 'analyze' tool
+2. Analyze keywords using the 'analyzeKeywords' tool
+3. Check meta tags using the 'analyzeMeta' tool
+4. Generate meta tags using the 'generateMetaTags' tool
+
+Guidelines:
+- For SEO/website analysis: Use the appropriate analysis tools
+- For content requests: Provide clear, actionable advice
+- For general questions: Respond naturally without using tools
+- Always explain your reasoning before and after using tools
+
+Available tools and their JSON formats:
+- analyze: { "url": "https://example.com" }
+- analyzeKeywords: { "keywords": ["keyword1", "keyword2"] }  // MUST be a JSON array
+- analyzeMeta: { "url": "https://example.com" }
+- generateMetaTags: {
+    "title": "Page Title",
+    "description": "Page description",
+    "keywords": ["keyword1", "keyword2"]  // MUST be a JSON array
   }
 
-  async chat(messages: CoreMessage[]) {
-    logWithTimestamp('[SEOAgent] Starting chat', {
-      messageCount: messages.length,
-      modelId: this.model.id,
-      chatId: this.chatId
-    });
+Important: When using tools that require keywords, ALWAYS provide them in proper JSON array format.
+CORRECT: { "keywords": ["seo", "optimization"] }
+INCORRECT: { "keywords": "['seo', 'optimization']" }
 
-    // Add system message to help model understand tool usage
-    const systemMessage: CoreMessage = {
-      role: 'system',
-      content: `You are an AI assistant specialized in website analysis and SEO optimization. When analyzing websites, ALWAYS use the provided tools to gather data. NEVER make assumptions or analyze without using tools first.
+DO NOT try to use any other tools besides these four.`,
+			});
 
-For example, when asked to analyze a website:
-1. Use the 'analyze' tool to get SEO data
-2. Wait for the tool results
-3. Provide insights based on the actual data
+			// Log for debugging
+			console.log("AI Response started");
+			console.log("AI Response:", result.text);
 
-DO NOT proceed without using tools. If you need to analyze a website, ALWAYS use the tools first.
-
-Available tools:
-${Object.entries(tools).map(([name, tool]) => `- ${name}: Use this tool to analyze websites`).join('\n')}`
-    };
-
-    // Extract URL from the last message
-    const lastMessage = messages[messages.length - 1];
-    const url = typeof lastMessage.content === 'string' 
-      ? lastMessage.content.match(/https?:\/\/[^\s]+/)?.[0] || ''
-      : '';
-
-    const ollamaModel: LanguageModelV1 = {
-      specificationVersion: 'v1',
-      provider: 'ollama',
-      modelId: this.model.apiIdentifier,
-      defaultObjectGenerationMode: 'json',
-      doGenerate: async () => {
-        throw new Error('Not implemented');
-      },
-      doStream: async (options: LanguageModelV1CallOptions) => {
-        const response = await fetch('http://localhost:11434/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: this.model.apiIdentifier,
-            messages: [
-              systemMessage,
-              ...messages,
-              {
-                role: 'assistant',
-                content: 'I will help you analyze the website. Let me use the appropriate tools to gather data.',
-                function_call: {
-                  name: 'analyze',
-                  arguments: JSON.stringify({
-                    url
-                  })
-                }
-              }
-            ],
-            options: {
-              temperature: 0.7,
-              num_predict: 4096
-            },
-            stream: true
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-        }
-
-        // Transform the raw response stream into the expected format
-        const transformStream = new TransformStream({
-          async transform(chunk, controller) {
-            try {
-              const text = new TextDecoder().decode(chunk);
-              const lines = text.split('\n').filter(Boolean);
-              
-              for (const line of lines) {
-                const json = JSON.parse(line);
-                logWithTimestamp('[SEOAgent] Received chunk:', json);
-                
-                // Handle text content
-                if (json.message?.content) {
-                  controller.enqueue({
-                    type: 'text-delta',
-                    textDelta: json.message.content
-                  } satisfies LanguageModelV1StreamPart);
-                }
-                
-                // Handle function calls
-                if (json.message?.function_call) {
-                  const toolCallId = crypto.randomUUID();
-                  logWithTimestamp('[SEOAgent] Tool call:', {
-                    toolName: json.message.function_call.name,
-                    args: json.message.function_call.arguments,
-                    toolCallId
-                  });
-                  
-                  // Send the tool call as a delta
-                  controller.enqueue({
-                    type: 'tool-call-delta',
-                    toolCallType: 'function',
-                    toolCallId,
-                    toolName: json.message.function_call.name,
-                    argsTextDelta: json.message.function_call.arguments
-                  } satisfies LanguageModelV1StreamPart);
-                }
-              }
-            } catch (e) {
-              logWithTimestamp('[SEOAgent] Error transforming chunk:', e);
-            }
-          }
-        });
-
-        const stream = response.body?.pipeThrough(transformStream) as ReadableStream<LanguageModelV1StreamPart>;
-
-        // Convert headers to a plain object
-        const headers: Record<string, string> = {};
-        response.headers.forEach((value, key) => {
-          headers[key] = value;
-        });
-
-        return {
-          stream,
-          rawCall: {
-            rawPrompt: messages as unknown,
-            rawSettings: {
-              temperature: 0.7,
-              maxTokens: 4096
-            }
-          },
-          rawResponse: {
-            headers,
-            status: response.status,
-            statusText: response.statusText
-          }
-        };
-      }
-    };
-
-    const result = await streamText({
-      model: ollamaModel,
-      messages: [systemMessage, ...messages],
-      tools,
-      maxSteps: 10,
-      experimental_toolCallStreaming: true,
-      onStepFinish: ({ text, toolCalls, toolResults, finishReason, usage }) => {
-        logWithTimestamp('[SEOAgent] Chat step:', {
-          textLength: text?.length,
-          text: text?.slice(0, 100) + (text?.length > 100 ? '...' : ''),
-          toolCalls: toolCalls?.map(call => ({
-            toolName: call.toolName,
-            args: call.args
-          })),
-          toolResults: toolResults?.map(result => ({
-            toolName: result.toolName,
-            result: result.result
-          })),
-          finishReason,
-          usage: {
-            promptTokens: usage?.promptTokens,
-            completionTokens: usage?.completionTokens,
-            totalTokens: usage?.totalTokens
-          }
-        });
-      }
-    });
-
-    return result.toTextStreamResponse();
-  }
-} 
+			// Return the stream response
+			return result.response;
+		} catch (error: unknown) {
+			console.error("Error in chat:", error);
+			throw error;
+		}
+	}
+}

@@ -14,7 +14,8 @@ interface Props {
 }
 
 export default async function ChatPage({ params }: Props) {
-  const id = params.id;
+  const nextjs15 = await params;
+  const id = nextjs15.id;
   const session = await auth();
   
   if (!session?.user?.id) {

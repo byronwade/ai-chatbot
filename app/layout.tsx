@@ -6,9 +6,20 @@ import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'Next.js Chatbot Template',
-  description: 'Next.js chatbot template using the AI SDK.',
+	metadataBase: new URL("https://www.byronwade.com"),
+	title: "SEO Wizard - All-in-One SEO Analysis & Content Generation Tool",
+	description: "Comprehensive SEO analysis, content optimization, and blog generation powered by AI. Get detailed insights, keyword analysis, and content recommendations to improve your website's search engine ranking.",
+	keywords: "SEO tool, content optimization, keyword analysis, blog generator, website analysis, SEO insights, search engine optimization",
+	openGraph: {
+		title: "SEO Wizard - All-in-One SEO Analysis & Content Generation Tool",
+		description: "Comprehensive SEO analysis, content optimization, and blog generation powered by AI. Get detailed insights, keyword analysis, and content recommendations.",
+		type: "website",
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "SEO Wizard - All-in-One SEO Analysis & Content Generation Tool",
+		description: "AI-powered SEO analysis and content optimization tool",
+	},
 };
 
 export const viewport = {

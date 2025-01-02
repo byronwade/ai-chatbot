@@ -1,17 +1,24 @@
-import { ollama } from './ollama';
-import { getModel, type ModelId } from './models';
-import { logWithTimestamp } from '../utils';
+import { SEOAgent } from "./agent";
+import { type AIModel } from "./models";
+import { getModel, type ModelId } from "./models";
+import { logWithTimestamp } from "../utils";
+import { ollama } from "ollama-ai-provider";
 
 export function customModel(modelId: ModelId) {
-  const model = getModel(modelId);
-  logWithTimestamp('[AI Info] Creating custom model:', { modelId });
-  logWithTimestamp('[AI Info] Using model:', { 
-    id: model.id,
-    name: model.name,
-    apiIdentifier: model.apiIdentifier
-  });
-  
-  return ollama(model.apiIdentifier);
+	const model = getModel(modelId);
+	logWithTimestamp("[Model] Creating custom model:", { modelId });
+
+	if (model.provider === "openai") {
+		// Handle OpenAI case
+		return model;
+	} else {
+		// Use direct Ollama provider
+		return {
+			...model,
+			provider: ollama(model.apiIdentifier),
+		};
+	}
 }
 
-export * from './models';
+export { SEOAgent };
+export type { AIModel };
