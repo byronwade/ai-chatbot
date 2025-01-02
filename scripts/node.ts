@@ -86,11 +86,14 @@ async function runAgent(userInput: string) {
 					description: "Generate a comprehensive blog post with research and SEO optimization",
 					parameters: z.object({
 						topic: z.string().describe("The topic to write about"),
-						wordCount: z.number().min(100).max(10000).default(3000).describe("Target word count"),
+						wordCount: z.coerce.number().min(100).max(10000).default(3000).describe("Target word count"),
 						style: z.enum(['academic', 'conversational', 'technical', 'professional']).default('professional'),
 						tone: z.enum(['formal', 'informal', 'balanced']).default('balanced'),
 						audience: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).default('intermediate'),
-						seedUrls: z.array(z.string().url()).optional().describe("Optional list of URLs to start research from")
+						seedUrls: z.preprocess(
+							(val) => typeof val === 'string' ? JSON.parse(val) : val,
+							z.array(z.string().url()).default([])
+						).describe("Optional list of URLs to start research from")
 					}),
 					execute: async ({ topic, wordCount, style, tone, audience, seedUrls = [] }) => {
 						streamOutput(`\nGenerating ${wordCount}-word blog post about: ${topic}\n`);
