@@ -331,7 +331,7 @@ function PureBlock({
                   blockStatus={block.status}
                 />
 
-                <form className="flex flex-row gap-2 relative items-end w-full px-4 pb-4">
+                <form className="flex flex-row gap-2 relative items-end w-full px-4 pb-4" suppressHydrationWarning>
                   <MultimodalInput
                     chatId={chatId}
                     input={input}

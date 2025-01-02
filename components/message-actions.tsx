@@ -4,7 +4,7 @@ import { useSWRConfig } from 'swr';
 import { useCopyToClipboard } from 'usehooks-ts';
 
 import type { Vote } from '@/lib/db/schema';
-import { getMessageIdFromAnnotations } from '@/lib/utils';
+import { cn, getMessageIdFromAnnotations } from '@/lib/utils';
 
 import { CopyIcon, ThumbDownIcon, ThumbUpIcon } from './icons';
 import { Button } from './ui/button';
@@ -38,7 +38,7 @@ export function PureMessageActions({
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex flex-row gap-2">
+      <div className="flex flex-row gap-2" suppressHydrationWarning>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -48,6 +48,7 @@ export function PureMessageActions({
                 await copyToClipboard(message.content as string);
                 toast.success('Copied to clipboard!');
               }}
+              suppressHydrationWarning
             >
               <CopyIcon />
             </Button>
@@ -58,109 +59,67 @@ export function PureMessageActions({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              className="py-1 px-2 h-fit text-muted-foreground !pointer-events-auto"
-              disabled={vote?.isUpvoted}
+              className={cn('py-1 px-2 h-fit text-muted-foreground', {
+                'text-green-500': vote?.isUpvoted,
+              })}
               variant="outline"
               onClick={async () => {
                 const messageId = getMessageIdFromAnnotations(message);
+                if (!messageId) {
+                  toast.error('Something went wrong, please try again!');
+                  return;
+                }
 
-                const upvote = fetch('/api/vote', {
-                  method: 'PATCH',
+                await fetch('/api/vote', {
+                  method: 'POST',
                   body: JSON.stringify({
                     chatId,
                     messageId,
-                    type: 'up',
+                    isUpvoted: true,
                   }),
                 });
 
-                toast.promise(upvote, {
-                  loading: 'Upvoting Response...',
-                  success: () => {
-                    mutate<Array<Vote>>(
-                      `/api/vote?chatId=${chatId}`,
-                      (currentVotes) => {
-                        if (!currentVotes) return [];
-
-                        const votesWithoutCurrent = currentVotes.filter(
-                          (vote) => vote.messageId !== message.id,
-                        );
-
-                        return [
-                          ...votesWithoutCurrent,
-                          {
-                            chatId,
-                            messageId: message.id,
-                            isUpvoted: true,
-                          },
-                        ];
-                      },
-                      { revalidate: false },
-                    );
-
-                    return 'Upvoted Response!';
-                  },
-                  error: 'Failed to upvote response.',
-                });
+                mutate(`/api/vote?chatId=${chatId}`);
               }}
+              suppressHydrationWarning
             >
               <ThumbUpIcon />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Upvote Response</TooltipContent>
+          <TooltipContent>Upvote</TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              className="py-1 px-2 h-fit text-muted-foreground !pointer-events-auto"
+              className={cn('py-1 px-2 h-fit text-muted-foreground', {
+                'text-red-500': vote && !vote.isUpvoted,
+              })}
               variant="outline"
-              disabled={vote && !vote.isUpvoted}
               onClick={async () => {
                 const messageId = getMessageIdFromAnnotations(message);
+                if (!messageId) {
+                  toast.error('Something went wrong, please try again!');
+                  return;
+                }
 
-                const downvote = fetch('/api/vote', {
-                  method: 'PATCH',
+                await fetch('/api/vote', {
+                  method: 'POST',
                   body: JSON.stringify({
                     chatId,
                     messageId,
-                    type: 'down',
+                    isUpvoted: false,
                   }),
                 });
 
-                toast.promise(downvote, {
-                  loading: 'Downvoting Response...',
-                  success: () => {
-                    mutate<Array<Vote>>(
-                      `/api/vote?chatId=${chatId}`,
-                      (currentVotes) => {
-                        if (!currentVotes) return [];
-
-                        const votesWithoutCurrent = currentVotes.filter(
-                          (vote) => vote.messageId !== message.id,
-                        );
-
-                        return [
-                          ...votesWithoutCurrent,
-                          {
-                            chatId,
-                            messageId: message.id,
-                            isUpvoted: false,
-                          },
-                        ];
-                      },
-                      { revalidate: false },
-                    );
-
-                    return 'Downvoted Response!';
-                  },
-                  error: 'Failed to downvote response.',
-                });
+                mutate(`/api/vote?chatId=${chatId}`);
               }}
+              suppressHydrationWarning
             >
               <ThumbDownIcon />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Downvote Response</TooltipContent>
+          <TooltipContent>Downvote</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>

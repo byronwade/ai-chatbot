@@ -1,54 +1,60 @@
-import { cookies } from 'next/headers';
-import { notFound } from 'next/navigation';
-
+import { redirect } from 'next/navigation';
 import { auth } from '@/app/(auth)/auth';
 import { Chat } from '@/components/chat';
-import { DEFAULT_MODEL_NAME, models } from '@/lib/ai/models';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
-import { convertToUIMessages } from '@/lib/utils';
-import { DataStreamHandler } from '@/components/data-stream-handler';
+import { getChatById, saveChat, getMessagesByChatId } from '@/lib/db/queries';
+import { DEFAULT_MODEL_NAME } from '@/lib/ai/models';
+import { cookies } from 'next/headers';
+import { logWithTimestamp } from '@/lib/utils';
+import type { Message } from 'ai';
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
-  const { id } = params;
-  const chat = await getChatById({ id });
-
-  if (!chat) {
-    notFound();
+interface Props {
+  params: {
+    id: string
   }
+}
 
+export default async function ChatPage({ params }: Props) {
+  const id = params.id;
   const session = await auth();
-
-  if (chat.visibility === 'private') {
-    if (!session || !session.user) {
-      return notFound();
-    }
-
-    if (session.user.id !== chat.userId) {
-      return notFound();
-    }
+  
+  if (!session?.user?.id) {
+    redirect('/sign-in');
   }
 
-  const messagesFromDb = await getMessagesByChatId({
-    id,
-  });
+  logWithTimestamp('Loading chat page:', { id });
 
   const cookieStore = await cookies();
-  const modelIdFromCookie = cookieStore.get('model-id')?.value;
-  const selectedModelId =
-    models.find((model) => model.id === modelIdFromCookie)?.id ||
-    DEFAULT_MODEL_NAME;
+  const modelId = cookieStore.get('model-id')?.value || DEFAULT_MODEL_NAME;
+
+  // Get the chat
+  const chat = await getChatById({ id });
+  const dbMessages = chat ? await getMessagesByChatId({ id }) : [];
+  
+  // Convert DB messages to AI Message format
+  const messages: Message[] = dbMessages.map(msg => ({
+    id: msg.id,
+    content: String(msg.content),
+    role: msg.role as Message['role'],
+    createdAt: msg.createdAt
+  }));
+
+  if (!chat) {
+    // Create new chat if it doesn't exist
+    await saveChat({
+      id,
+      userId: session.user.id,
+      title: 'New Chat',
+      createdAt: new Date()
+    });
+  }
 
   return (
-    <>
-      <Chat
-        id={chat.id}
-        initialMessages={convertToUIMessages(messagesFromDb)}
-        selectedModelId={selectedModelId}
-        selectedVisibilityType={chat.visibility}
-        isReadonly={session?.user?.id !== chat.userId}
-      />
-      <DataStreamHandler id={id} />
-    </>
+    <Chat 
+      id={id}
+      initialMessages={messages}
+      selectedModelId={modelId}
+      selectedVisibilityType={chat?.visibility || 'private'}
+      isReadonly={false}
+    />
   );
 }

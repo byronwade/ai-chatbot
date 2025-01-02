@@ -1,0 +1,989 @@
+/**************************************************************
+ * Updated Next.js Project Rules for Cursors AI
+ * 
+ * Description:
+ * This file serves as the guiding principles and best practices 
+ * for building a Next.js application that leverages:
+ *  - Drizzle (SQLite) with trigram indexing
+ *  - Tailwind CSS
+ *  - Shadcn UI
+ *  - Vercel AI (ai package)
+ *  - Ollama and Ollama Provider for advanced LLM functionalities
+ *    (using llama2 model via sgomez/ollama-ai-provider)
+ * 
+ * We are creating a chatbot similar to 0v.dev:
+ *    - Left panel: Blog content generation and editing
+ *    - Right panel: Chat box with streamed data about the agent’s actions
+ *
+ * The primary goal is to build a robust SEO AI:
+ *    - The AI will begin by trigram-indexing a website,
+ *    - Conduct research,
+ *    - **Always produce a blog post** with a strong SEO focus
+ *    - Generate a ~3000-word blog article with inline images and videos,
+ *    - Continuously learn and improve over time.
+ * 
+ * Important Considerations:
+ *    1. Do NOT remove any existing features without first evaluating 
+ *       potential implications; err on the side of preserving functionality.
+ *    2. Do NOT remove existing content from package.json. You may add to it, 
+ *       but do not delete or override existing entries.
+ *    3. The ultimate end goal for this AI is always to create an SEO-driven 
+ *       blog post as a final output.
+ **************************************************************/
+
+export default `
+
+You are an expert full-stack developer proficient in TypeScript, React, Next.js, Drizzle (SQLite), and modern UI/UX frameworks (e.g., Tailwind CSS, Shadcn UI). Your task is to produce the most optimized and maintainable Next.js code, following best practices and adhering to the principles of clean code and robust architecture.
+
+### Objective
+- Create a Next.js solution that is not only functional but also adheres to the best practices in performance, security, and maintainability.
+- Integrate Drizzle for SQLite with trigram indexing.
+- Utilize the \`vercel ai\` package (with Ollama and Ollama Provider) for all AI functionalities, specifically using the llama2 model.
+- **Important**: For AI-related streaming output, use \`import { streamText } from 'ai';\` instead of \`StreamingTextResponse\`.
+- Employ Shadcn UI components and Tailwind CSS for styling.
+- **Always produce a final blog post** with a strong SEO focus.
+
+### Code Style and Structure
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Favor iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., \`isLoading\`, \`hasError\`).
+- Structure files with exported components, subcomponents, helpers, static content, and types.
+- Use lowercase with dashes for directory names (e.g., \`components/chat-ui\`).
+
+### Optimization and Best Practices
+- Minimize the use of \`'use client'\`, \`useEffect\`, and \`setState\`; favor React Server Components (RSC) and Next.js SSR features when possible.
+- Implement dynamic imports for code splitting and performance optimization.
+- Use responsive design with a mobile-first approach.
+- Optimize images with modern formats (e.g., WebP), include size data, and implement lazy loading.
+
+### Error Handling and Validation
+- Prioritize error handling and edge cases:
+  - Use early returns for error conditions.
+  - Implement guard clauses to handle preconditions and invalid states early.
+  - Use custom error types for consistent error handling.
+
+### UI and Styling
+- Use Tailwind CSS for utility-first styling.
+- Employ Shadcn UI components for consistent design and rapid development.
+- Implement responsive patterns and ensure cross-browser/device compatibility.
+
+### State Management and Data Access
+- Integrate Drizzle as the ORM for SQLite.
+  - Implement trigram indexing for advanced text-based queries (e.g., SEO content and website text analysis).
+- Fetch data using Next.js \`fetch\` or server actions (RSC patterns).
+- For client-side interactions with the AI (via Vercel AI), integrate Ollama using sgomez/ollama-ai-provider to enable advanced LLM functionalities (llama2 model).
+
+### Ollama Provider Integration
+- Use \`pnpm add ollama-ai-provider\` (or your package manager of choice) to install the Ollama provider.
+- By default, import the provider instance via:
+  \`\`\`ts
+  import { ollama } from 'ollama-ai-provider';
+  \`\`\`
+- For a custom setup (custom baseURL, headers, etc.):
+  \`\`\`ts
+  import { createOllama } from 'ollama-ai-provider';
+
+  const ollama = createOllama({
+    baseURL: 'https://api.ollama.com',
+    headers: {
+      // optional custom headers
+    },
+  });
+  \`\`\`
+- Use \`ollama('<model-id>')\` to specify the model, e.g. llama2-based model:
+  \`\`\`ts
+  const model = ollama('llama2');
+  \`\`\`
+- For embeddings:
+  \`\`\`ts
+  const embeddingModel = ollama.embedding('nomic-embed-text');
+  \`\`\`
+
+### Security and Performance
+- Implement proper error handling, user input validation, and secure coding practices (e.g., parameterized queries with Drizzle).
+- Use performance optimization techniques, such as static page generation or incremental static regeneration where applicable.
+- Ensure the AI streaming logic is secure and does not reveal sensitive data.
+
+### Testing and Documentation
+- Document complex logic with clear, concise comments.
+- If unit tests or integration tests are implemented, adopt a consistent testing strategy to ensure maintainability and coverage.
+
+### Methodology
+1. **System 2 Thinking**: Approach the problem analytically—break down requirements into smaller parts and thoroughly consider each step before implementation.
+2. **Tree of Thoughts**: Evaluate multiple potential solutions and their consequences. Utilize a structured approach to explore different paths and select the optimal one.
+3. **Iterative Refinement**: Before finalizing the code, consider improvements, edge cases, and optimizations. Iterate through potential enhancements to ensure the final solution is robust.
+
+### Process
+1. **Deep Dive Analysis**:
+   - Conduct a thorough analysis of the project, focusing on its AI-driven SEO blogging and chat functionalities.
+   - Outline how trigram indexing will be implemented with Drizzle.
+2. **Planning**:
+   - Determine the architectural structure (folders, components, data models, providers).
+   - Use \`<PLANNING>\` tags if necessary to note architectural decisions.
+3. **Implementation**:
+   - Build out the Next.js routes and components for the chatbox (Ollama-based streaming AI) and blog generation (SEO content).
+   - Incorporate Drizzle for SQLite data storage.
+   - Implement Trigram indexing for efficient SEO content analysis.
+   - Use the \`vercel ai\` package for streaming (replacing \`StreamingTextResponse\` with \`streamText\`) and advanced LLM interactions.
+   - Style with Tailwind CSS and Shadcn UI components.
+4. **Review and Optimize**:
+   - Evaluate code for potential performance issues (e.g., large queries, inefficient indexing).
+   - Ensure the code is secure and free of vulnerabilities.
+   - **Do NOT remove any existing features without analyzing their impact.** 
+5. **Finalization**:
+   - Confirm all features meet the requirements:
+     - Chatbox streaming functionality for agent tools using \`streamText\`.
+     - Automatic blog content generation (up to 3000 words, with inline images and videos).
+     - **Always ensure the final output is an SEO-focused blog post.**
+     - Continuous learning mechanism over time (reinforce trigram indexing updates and AI fine-tuning).
+   - Verify performance, scalability, and maintainability.
+   - **Do NOT remove or override existing content in package.json (only add if needed).**
+
+`
+
+
+
+
+
+
+
+
+
+This is the migration guide for vercel ai dont forget to use this or refrance this everytime needed to use the 'ai' package
+Migrate AI SDK 3.4 to 4.0
+Check out the AI SDK 4.0 release blog post for more information about the release.
+
+Recommended Migration Process
+Backup your project. If you use a versioning control system, make sure all previous versions are committed.
+Migrate to AI SDK 3.4.
+Upgrade to AI SDK 4.0.
+Automatically migrate your code using codemods.
+If you don't want to use codemods, we recommend resolving all deprecation warnings before upgrading to AI SDK 4.0.
+
+Follow the breaking changes guide below.
+Verify your project is working as expected.
+Commit your changes.
+AI SDK 4.0 package versions
+You need to update the following packages to the following versions in your package.json file(s):
+
+ai package: 4.0.*
+ai-sdk@provider-utils package: 2.0.*
+ai-sdk/* packages: 1.0.* (other @ai-sdk packages)
+Codemods
+The AI SDK provides Codemod transformations to help upgrade your codebase when a feature is deprecated, removed, or otherwise changed.
+
+Codemods are transformations that run on your codebase programmatically. They allow you to easily apply many changes without having to manually go through every file.
+
+Codemods are intended as a tool to help you with the upgrade process. They may not cover all of the changes you need to make. You may need to make additional changes manually.
+
+You can run all codemods provided as part of the 4.0 upgrade process by running the following command from the root of your project:
+
+
+npx @ai-sdk/codemod upgrade
+Individual codemods can be run by specifying the name of the codemod:
+
+
+npx @ai-sdk/codemod <codemod-name> <path>
+See also the table of codemods. In addition, the latest set of codemods can be found in the @ai-sdk/codemod repository.
+
+Provider Changes
+Removed baseUrl option
+The baseUrl option has been removed from all providers. Please use the baseURL option instead.
+
+AI SDK 3.4
+
+const perplexity = createOpenAI({
+  // ...
+  baseUrl: 'https://api.perplexity.ai/',
+});
+AI SDK 4.0
+
+const perplexity = createOpenAI({
+  // ...
+  baseURL: 'https://api.perplexity.ai/',
+});
+Anthropic Provider
+Removed Anthropic facade
+The Anthropic facade has been removed from the Anthropic provider. Please use the anthropic object or the createAnthropic function instead.
+
+AI SDK 3.4
+
+const anthropic = new Anthropic({
+  // ...
+});
+AI SDK 4.0
+
+const anthropic = createAnthropic({
+  // ...
+});
+Removed topK setting
+There is no codemod available for this change. Please review and update your code manually.
+
+The model specific topK setting has been removed from the Anthropic provider. You can use the standard topK setting instead.
+
+AI SDK 3.4
+
+const result = await generateText({
+  model: anthropic('claude-3-5-sonnet-latest', {
+    topK: 0.5,
+  }),
+});
+AI SDK 4.0
+
+const result = await generateText({
+  model: anthropic('claude-3-5-sonnet-latest'),
+  topK: 0.5,
+});
+Google Generative AI Provider
+Removed Google facade
+The Google facade has been removed from the Google Generative AI provider. Please use the google object or the createGoogleGenerativeAI function instead.
+
+AI SDK 3.4
+
+const google = new Google({
+  // ...
+});
+AI SDK 4.0
+
+const google = createGoogleGenerativeAI({
+  // ...
+});
+Removed topK setting
+There is no codemod available for this change. Please review and update your code manually.
+
+The model-specific topK setting has been removed from the Google Generative AI provider. You can use the standard topK setting instead.
+
+AI SDK 3.4
+
+const result = await generateText({
+  model: google('gemini-1.5-flash', {
+    topK: 0.5,
+  }),
+});
+AI SDK 4.0
+
+const result = await generateText({
+  model: google('gemini-1.5-flash'),
+  topK: 0.5,
+});
+Google Vertex Provider
+Removed topK setting
+There is no codemod available for this change. Please review and update your code manually.
+
+The model-specific topK setting has been removed from the Google Vertex provider. You can use the standard topK setting instead.
+
+AI SDK 3.4
+
+const result = await generateText({
+  model: vertex('gemini-1.5-flash', {
+    topK: 0.5,
+  }),
+});
+AI SDK 4.0
+
+const result = await generateText({
+  model: vertex('gemini-1.5-flash'),
+  topK: 0.5,
+});
+Mistral Provider
+Removed Mistral facade
+The Mistral facade has been removed from the Mistral provider. Please use the mistral object or the createMistral function instead.
+
+AI SDK 3.4
+
+const mistral = new Mistral({
+  // ...
+});
+AI SDK 4.0
+
+const mistral = createMistral({
+  // ...
+});
+OpenAI Provider
+Removed OpenAI facade
+The OpenAI facade has been removed from the OpenAI provider. Please use the openai object or the createOpenAI function instead.
+
+AI SDK 3.4
+
+const openai = new OpenAI({
+  // ...
+});
+AI SDK 4.0
+
+const openai = createOpenAI({
+  // ...
+});
+LangChain Adapter
+Removed toAIStream
+The toAIStream function has been removed from the LangChain adapter. Please use the toDataStream function instead.
+
+AI SDK 3.4
+
+LangChainAdapter.toAIStream(stream);
+AI SDK 4.0
+
+LangChainAdapter.toDataStream(stream);
+AI SDK Core Changes
+streamText returns immediately
+Instead of returning a Promise, the streamText function now returns immediately. It is not necessary to await the result of streamText.
+
+AI SDK 3.4
+
+const result = await streamText({
+  // ...
+});
+AI SDK 4.0
+
+const result = streamText({
+  // ...
+});
+streamObject returns immediately
+Instead of returning a Promise, the streamObject function now returns immediately. It is not necessary to await the result of streamObject.
+
+AI SDK 3.4
+
+const result = await streamObject({
+  // ...
+});
+AI SDK 4.0
+
+const result = streamObject({
+  // ...
+});
+Remove roundtrips
+The maxToolRoundtrips and maxAutomaticRoundtrips options have been removed from the generateText and streamText functions. Please use the maxSteps option instead.
+
+The roundtrips property has been removed from the GenerateTextResult type. Please use the steps property instead.
+
+AI SDK 3.4
+
+const { text, roundtrips } = await generateText({
+  maxToolRoundtrips: 1, // or maxAutomaticRoundtrips
+  // ...
+});
+AI SDK 4.0
+
+const { text, steps } = await generateText({
+  maxSteps: 2,
+  // ...
+});
+Removed nanoid export
+The nanoid export has been removed. Please use generateId instead.
+
+AI SDK 3.4
+
+import { nanoid } from 'ai';
+AI SDK 4.0
+
+import { generateId } from 'ai';
+Increased default size of generated IDs
+There is no codemod available for this change. Please review and update your code manually.
+
+The generateId function now generates 16-character IDs. The previous default was 7 characters.
+
+This might e.g. require updating your database schema if you limit the length of IDs.
+
+AI SDK 4.0
+
+import { generateId } from 'ai';
+
+const id = generateId(); // now 16 characters
+Removed ExperimentalMessage types
+The following types have been removed:
+
+ExperimentalMessage (use CoreMessage instead)
+ExperimentalUserMessage (use CoreUserMessage instead)
+ExperimentalAssistantMessage (use CoreAssistantMessage instead)
+ExperimentalToolMessage (use CoreToolMessage instead)
+AI SDK 3.4
+
+import {
+  ExperimentalMessage,
+  ExperimentalUserMessage,
+  ExperimentalAssistantMessage,
+  ExperimentalToolMessage,
+} from 'ai';
+AI SDK 4.0
+
+import {
+  CoreMessage,
+  CoreUserMessage,
+  CoreAssistantMessage,
+  CoreToolMessage,
+} from 'ai';
+Removed ExperimentalTool type
+The ExperimentalTool type has been removed. Please use the CoreTool type instead.
+
+AI SDK 3.4
+
+import { ExperimentalTool } from 'ai';
+AI SDK 4.0
+
+import { CoreTool } from 'ai';
+Removed experimental AI function exports
+The following exports have been removed:
+
+experimental_generateText (use generateText instead)
+experimental_streamText (use streamText instead)
+experimental_generateObject (use generateObject instead)
+experimental_streamObject (use streamObject instead)
+AI SDK 3.4
+
+import {
+  experimental_generateText,
+  experimental_streamText,
+  experimental_generateObject,
+  experimental_streamObject,
+} from 'ai';
+AI SDK 4.0
+
+import { generateText, streamText, generateObject, streamObject } from 'ai';
+Removed AI-stream related methods from streamText
+The following methods have been removed from the streamText result:
+
+toAIStream
+pipeAIStreamToResponse
+toAIStreamResponse
+Use the toDataStream, pipeDataStreamToResponse, and toDataStreamResponse functions instead.
+
+AI SDK 3.4
+
+const result = await streamText({
+  // ...
+});
+
+result.toAIStream();
+result.pipeAIStreamToResponse(response);
+result.toAIStreamResponse();
+AI SDK 4.0
+
+const result = streamText({
+  // ...
+});
+
+result.toDataStream();
+result.pipeDataStreamToResponse(response);
+result.toDataStreamResponse();
+Renamed "formatStreamPart" to "formatDataStreamPart"
+The formatStreamPart function has been renamed to formatDataStreamPart.
+
+AI SDK 3.4
+
+formatStreamPart('text', 'Hello, world!');
+AI SDK 4.0
+
+formatDataStreamPart('text', 'Hello, world!');
+Renamed "parseStreamPart" to "parseDataStreamPart"
+The parseStreamPart function has been renamed to parseDataStreamPart.
+
+AI SDK 3.4
+
+const part = parseStreamPart(line);
+AI SDK 4.0
+
+const part = parseDataStreamPart(line);
+Renamed TokenUsage, CompletionTokenUsage and EmbeddingTokenUsage types
+The TokenUsage, CompletionTokenUsage and EmbeddingTokenUsage types have been renamed to LanguageModelUsage (for the first two) and EmbeddingModelUsage (for the last).
+
+AI SDK 3.4
+
+import { TokenUsage, CompletionTokenUsage, EmbeddingTokenUsage } from 'ai';
+AI SDK 4.0
+
+import { LanguageModelUsage, EmbeddingModelUsage } from 'ai';
+Removed deprecated telemetry data
+There is no codemod available for this change. Please review and update your code manually.
+
+The following telemetry data values have been removed:
+
+ai.finishReason (now in ai.response.finishReason)
+ai.result.object (now in ai.response.object)
+ai.result.text (now in ai.response.text)
+ai.result.toolCalls (now in ai.response.toolCalls)
+ai.stream.msToFirstChunk (now in ai.response.msToFirstChunk)
+This change will apply to observability providers and any scripts or automation that you use for processing telemetry data.
+
+Provider Registry
+Removed experimental_Provider, experimental_ProviderRegistry, and experimental_ModelRegistry
+The experimental_Provider interface, experimental_ProviderRegistry interface, and experimental_ModelRegistry interface have been removed. Please use the Provider interface instead.
+
+AI SDK 3.4
+
+import { experimental_Provider, experimental_ProviderRegistry } from 'ai';
+AI SDK 4.0
+
+import { Provider } from 'ai';
+The model registry is not available any more. Please register providers instead.
+
+Removed experimental_​createModelRegistry function
+The experimental_createModelRegistry function has been removed. Please use the experimental_createProviderRegistry function instead.
+
+AI SDK 3.4
+
+import { experimental_createModelRegistry } from 'ai';
+AI SDK 4.0
+
+import { experimental_createProviderRegistry } from 'ai';
+The model registry is not available any more. Please register providers instead.
+
+Removed rawResponse from results
+There is no codemod available for this change. Please review and update your code manually.
+
+The rawResponse property has been removed from the generateText, streamText, generateObject, and streamObject results. You can use the response property instead.
+
+AI SDK 3.4
+
+const { text, rawResponse } = await generateText({
+  // ...
+});
+AI SDK 4.0
+
+const { text, response } = await generateText({
+  // ...
+});
+Removed init option from pipeDataStreamToResponse and toDataStreamResponse
+There is no codemod available for this change. Please review and update your code manually.
+
+The init option has been removed from the pipeDataStreamToResponse and toDataStreamResponse functions. You can set the values from init directly into the options object.
+
+AI SDK 3.4
+
+const result = await streamText({
+  // ...
+});
+
+result.toDataStreamResponse(response, {
+  init: {
+    headers: {
+      'X-Custom-Header': 'value',
+    },
+  },
+  // ...
+});
+AI SDK 4.0
+
+const result = streamText({
+  // ...
+});
+
+result.toDataStreamResponse(response, {
+  headers: {
+    'X-Custom-Header': 'value',
+  },
+  // ...
+});
+Removed responseMessages from generateText and streamText
+There is no codemod available for this change. Please review and update your code manually.
+
+The responseMessages property has been removed from the generateText and streamText results. This includes the onFinish callback. Please use the response.messages property instead.
+
+AI SDK 3.4
+
+const { text, responseMessages } = await generateText({
+  // ...
+});
+AI SDK 4.0
+
+const { text, response } = await generateText({
+  // ...
+});
+
+const responseMessages = response.messages;
+Removed experimental_​continuationSteps option
+The experimental_continuationSteps option has been removed from the generateText function. Please use the experimental_continueSteps option instead.
+
+AI SDK 3.4
+
+const result = await generateText({
+  experimental_continuationSteps: true,
+  // ...
+});
+AI SDK 4.0
+
+const result = await generateText({
+  experimental_continueSteps: true,
+  // ...
+});
+Removed LanguageModelResponseMetadataWithHeaders type
+The LanguageModelResponseMetadataWithHeaders type has been removed. Please use the LanguageModelResponseMetadata type instead.
+
+AI SDK 3.4
+
+import { LanguageModelResponseMetadataWithHeaders } from 'ai';
+AI SDK 4.0
+
+import { LanguageModelResponseMetadata } from 'ai';
+Changed streamText warnings result to Promise
+There is no codemod available for this change. Please review and update your code manually.
+
+The warnings property of the StreamTextResult type is now a Promise.
+
+AI SDK 3.4
+
+const result = await streamText({
+  // ...
+});
+
+const warnings = result.warnings;
+AI SDK 4.0
+
+const result = streamText({
+  // ...
+});
+
+const warnings = await result.warnings;
+Changed streamObject warnings result to Promise
+There is no codemod available for this change. Please review and update your code manually.
+
+The warnings property of the StreamObjectResult type is now a Promise.
+
+AI SDK 3.4
+
+const result = await streamObject({
+  // ...
+});
+
+const warnings = result.warnings;
+AI SDK 4.0
+
+const result = streamObject({
+  // ...
+});
+
+const warnings = await result.warnings;
+Renamed simulateReadableStream values to chunks
+There is no codemod available for this change. Please review and update your code manually.
+
+The simulateReadableStream function from ai/test has been renamed to chunks.
+
+AI SDK 3.4
+
+import { simulateReadableStream } from 'ai/test';
+
+const stream = simulateReadableStream({
+  values: [1, 2, 3],
+  chunkDelayInMs: 100,
+});
+AI SDK 4.0
+
+import { simulateReadableStream } from 'ai/test';
+
+const stream = simulateReadableStream({
+  chunks: [1, 2, 3],
+  chunkDelayInMs: 100,
+});
+AI SDK RSC Changes
+There are no codemods available for the changes in this section. Please review and update your code manually.
+
+Removed render function
+The AI SDK RSC 3.0 render function has been removed. Please use the streamUI function instead or switch to AI SDK UI.
+
+AI SDK 3.0
+
+import { render } from 'ai/rsc';
+AI SDK 4.0
+
+import { streamUI } from 'ai/rsc';
+AI SDK UI Changes
+Removed Svelte, Vue, and SolidJS exports
+This codemod only operates on .ts and .tsx files. If you have code in files with other suffixes, please review and update your code manually.
+
+The ai package no longer exports Svelte, Vue, and SolidJS UI integrations. You need to install the @ai-sdk/svelte, @ai-sdk/vue, and @ai-sdk/solid packages directly.
+
+AI SDK 3.4
+
+import { useChat } from 'ai/svelte';
+AI SDK 4.0
+
+import { useChat } from '@ai-sdk/svelte';
+Removed experimental_StreamData
+The experimental_StreamData export has been removed. Please use the StreamData export instead.
+
+AI SDK 3.4
+
+import { experimental_StreamData } from 'ai';
+AI SDK 4.0
+
+import { StreamData } from 'ai';
+useChat hook
+There are no codemods available for the changes in this section. Please review and update your code manually.
+
+Removed streamMode setting
+The streamMode options has been removed from the useChat hook. Please use the streamProtocol parameter instead.
+
+AI SDK 3.4
+
+const { messages } = useChat({
+  streamMode: 'text',
+  // ...
+});
+AI SDK 4.0
+
+const { messages } = useChat({
+  streamProtocol: 'text',
+  // ...
+});
+Replaced roundtrip setting with maxSteps
+The following options have been removed from the useChat hook:
+
+experimental_maxAutomaticRoundtrips
+maxAutomaticRoundtrips
+maxToolRoundtrips
+Please use the maxSteps option instead. The value of maxSteps is equal to roundtrips + 1.
+
+AI SDK 3.4
+
+const { messages } = useChat({
+  experimental_maxAutomaticRoundtrips: 2,
+  // or maxAutomaticRoundtrips
+  // or maxToolRoundtrips
+  // ...
+});
+AI SDK 4.0
+
+const { messages } = useChat({
+  maxSteps: 3, // 2 roundtrips + 1
+  // ...
+});
+Removed options setting
+The options parameter in the useChat hook has been removed. Please use the headers and body parameters instead.
+
+AI SDK 3.4
+
+const { messages } = useChat({
+  options: {
+    headers: {
+      'X-Custom-Header': 'value',
+    },
+  },
+  // ...
+});
+AI SDK 4.0
+
+const { messages } = useChat({
+  headers: {
+    'X-Custom-Header': 'value',
+  },
+  // ...
+});
+Removed experimental_addToolResult method
+The experimental_addToolResult method has been removed from the useChat hook. Please use the addToolResult method instead.
+
+AI SDK 3.4
+
+const { messages, experimental_addToolResult } = useChat({
+  // ...
+});
+AI SDK 4.0
+
+const { messages, addToolResult } = useChat({
+  // ...
+});
+Changed default value of keepLastMessageOnError to true and deprecated the option
+The keepLastMessageOnError option has been changed to default to true. The option will be removed in the next major release.
+
+AI SDK 3.4
+
+const { messages } = useChat({
+  keepLastMessageOnError: true,
+  // ...
+});
+AI SDK 4.0
+
+const { messages } = useChat({
+  // ...
+});
+useCompletion hook
+There are no codemods available for the changes in this section. Please review and update your code manually.
+
+Removed streamMode setting
+The streamMode options has been removed from the useCompletion hook. Please use the streamProtocol parameter instead.
+
+AI SDK 3.4
+
+const { text } = useCompletion({
+  streamMode: 'text',
+  // ...
+});
+AI SDK 4.0
+
+const { text } = useCompletion({
+  streamProtocol: 'text',
+  // ...
+});
+useAssistant hook
+Removed experimental_useAssistant export
+The experimental_useAssistant export has been removed from the useAssistant hook. Please use the useAssistant hook directly instead.
+
+AI SDK 3.4
+
+import { experimental_useAssistant } from 'ai/react';
+AI SDK 4.0
+
+import { useAssistant } from 'ai/react';
+Removed threadId and messageId from AssistantResponse
+There is no codemod available for this change. Please review and update your code manually.
+
+The threadId and messageId parameters have been removed from the AssistantResponse function. Please use the threadId and messageId variables from the outer scope instead.
+
+AI SDK 3.4
+
+return AssistantResponse(
+  { threadId: myThreadId, messageId: myMessageId },
+  async ({ forwardStream, sendDataMessage, threadId, messageId }) => {
+    // use threadId and messageId here
+  },
+);
+AI SDK 4.0
+
+return AssistantResponse(
+  { threadId: myThreadId, messageId: myMessageId },
+  async ({ forwardStream, sendDataMessage }) => {
+    // use myThreadId and myMessageId here
+  },
+);
+Removed experimental_​AssistantResponse export
+There is no codemod available for this change. Please review and update your code manually.
+
+The experimental_AssistantResponse export has been removed. Please use the AssistantResponse function directly instead.
+
+AI SDK 3.4
+
+import { experimental_AssistantResponse } from 'ai';
+AI SDK 4.0
+
+import { AssistantResponse } from 'ai';
+experimental_useObject hook
+There are no codemods available for the changes in this section. Please review and update your code manually.
+
+The setInput helper has been removed from the experimental_useObject hook. Please use the submit helper instead.
+
+AI SDK 3.4
+
+const { object, setInput } = useObject({
+  // ...
+});
+AI SDK 4.0
+
+const { object, submit } = useObject({
+  // ...
+});
+AI SDK Errors
+Removed isXXXError static methods
+The isXXXError static methods have been removed from AI SDK errors. Please use the isInstance method of the corresponding error class instead.
+
+AI SDK 3.4
+
+import { APICallError } from 'ai';
+
+APICallError.isAPICallError(error);
+AI SDK 4.0
+
+import { APICallError } from 'ai';
+
+APICallError.isInstance(error);
+Removed toJSON method
+There is no codemod available for this change. Please review and update your code manually.
+
+The toJSON method has been removed from AI SDK errors.
+
+AI SDK 2.x Legacy Changes
+There are no codemods available for the changes in this section. Please review and update your code manually.
+
+Removed 2.x legacy providers
+Legacy providers from AI SDK 2.x have been removed. Please use the new AI SDK provider architecture instead.
+
+Removed 2.x legacy function and tool calling
+The legacy function_call and tools options have been removed from useChat and Message. The name property from the Message type has been removed. Please use the AI SDK Core tool calling instead.
+
+Removed 2.x prompt helpers
+Prompt helpers for constructing message prompts are no longer needed with the AI SDK provider architecture and have been removed.
+
+Removed 2.x AIStream
+The AIStream function and related exports have been removed. Please use the streamText function and its toDataStream() method instead.
+
+Removed 2.x StreamingTextResponse
+The StreamingTextResponse function has been removed. Please use the streamText function and its toDataStreamResponse() method instead.
+
+Removed 2.x streamToResponse
+The streamToResponse function has been removed. Please use the streamText function and its pipeDataStreamToResponse() method instead.
+
+Removed 2.x RSC Tokens streaming
+The legacy Tokens RSC streaming from 2.x has been removed. Tokens were implemented prior to AI SDK RSC and are no longer needed.
+
+Codemod Table
+The following table lists codemod availability for the AI SDK 4.0 upgrade process. Note the codemod upgrade command will run all of them for you. This list is provided to give visibility into which migrations have some automation. It can also be helpful to find the codemod names if you'd like to run a subset of codemods. For more, see the Codemods section.
+
+Change	Codemod
+Provider Changes	
+Removed baseUrl option	replace-baseurl
+Anthropic Provider	
+Removed Anthropic facade	remove-anthropic-facade
+Removed topK setting	N/A
+Google Generative AI Provider	
+Removed Google facade	remove-google-facade
+Removed topK setting	N/A
+Google Vertex Provider	
+Removed topK setting	N/A
+Mistral Provider	
+Removed Mistral facade	remove-mistral-facade
+OpenAI Provider	
+Removed OpenAI facade	remove-openai-facade
+LangChain Adapter	
+Removed toAIStream	replace-langchain-toaistream
+AI SDK Core Changes	
+streamText returns immediately	remove-await-streamtext
+streamObject returns immediately	remove-await-streamobject
+Remove roundtrips	replace-roundtrips-with-maxsteps
+Removed nanoid export	replace-nanoid
+Increased default size of generated IDs	N/A
+Removed ExperimentalMessage types	remove-experimental-message-types
+Removed ExperimentalTool type	remove-experimental-tool
+Removed experimental AI function exports	remove-experimental-ai-fn-exports
+Removed AI-stream related methods from streamText	remove-ai-stream-methods-from-stream-text-result
+Renamed "formatStreamPart" to "formatDataStreamPart"	rename-format-stream-part
+Renamed "parseStreamPart" to "parseDataStreamPart"	rename-parse-stream-part
+Renamed TokenUsage, CompletionTokenUsage and EmbeddingTokenUsage types	replace-token-usage-types
+Removed deprecated telemetry data	N/A
+Provider Registry	
+→ Removed experimental_Provider, experimental_ProviderRegistry, and experimental_ModelRegistry	remove-deprecated-provider-registry-exports
+→ Removed experimental_createModelRegistry function	N/A
+Removed rawResponse from results	N/A
+Removed init option from pipeDataStreamToResponse and toDataStreamResponse	N/A
+Removed responseMessages from generateText and streamText	N/A
+Removed experimental_continuationSteps option	replace-continuation-steps
+Removed LanguageModelResponseMetadataWithHeaders type	remove-metadata-with-headers
+Changed streamText warnings result to Promise	N/A
+Changed streamObject warnings result to Promise	N/A
+Renamed simulateReadableStream values to chunks	N/A
+AI SDK RSC Changes	
+Removed render function	N/A
+AI SDK UI Changes	
+Removed Svelte, Vue, and SolidJS exports	rewrite-framework-imports
+Removed experimental_StreamData	remove-experimental-streamdata
+useChat hook	
+Removed streamMode setting	N/A
+Replaced roundtrip setting with maxSteps	replace-roundtrips-with-maxsteps
+Removed options setting	N/A
+Removed experimental_addToolResult method	N/A
+Changed default value of keepLastMessageOnError to true and deprecated the option	N/A
+useCompletion hook	
+Removed streamMode setting	N/A
+useAssistant hook	
+Removed experimental_useAssistant export	remove-experimental-useassistant
+Removed threadId and messageId from AssistantResponse	N/A
+Removed experimental_AssistantResponse export	N/A
+experimental_useObject hook	
+Removed setInput helper	N/A
+AI SDK Errors	
+Removed isXXXError static methods	remove-isxxxerror
+Removed toJSON method	N/A
+AI SDK 2.x Legacy Changes	
+Removed 2.x legacy providers	N/A
+Removed 2.x legacy function and tool calling	N/A
+Removed 2.x prompt helpers	N/A
+Removed 2.x AIStream	N/A
+Removed 2.x StreamingTextResponse	N/A
+Removed 2.x streamToResponse	N/A
+Removed 2.x RSC Tokens streaming	N/A

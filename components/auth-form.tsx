@@ -15,7 +15,7 @@ export function AuthForm({
   defaultEmail?: string;
 }) {
   return (
-    <Form action={action} className="flex flex-col gap-4 px-4 sm:px-16">
+    <Form action={action} className="flex flex-col gap-4 px-4 sm:px-16" suppressHydrationWarning>
       <div className="flex flex-col gap-2">
         <Label
           htmlFor="email"
@@ -34,6 +34,7 @@ export function AuthForm({
           required
           autoFocus
           defaultValue={defaultEmail}
+          suppressHydrationWarning
         />
       </div>
 
@@ -51,6 +52,7 @@ export function AuthForm({
           className="bg-muted text-md md:text-sm"
           type="password"
           required
+          suppressHydrationWarning
         />
       </div>
 

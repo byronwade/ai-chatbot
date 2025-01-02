@@ -200,6 +200,8 @@ function PureMultimodalInput({
         multiple
         onChange={handleFileChange}
         tabIndex={-1}
+        suppressHydrationWarning
+        autoComplete="off"
       />
 
       {(attachments.length > 0 || uploadQueue.length > 0) && (
@@ -233,6 +235,8 @@ function PureMultimodalInput({
         )}
         rows={2}
         autoFocus
+        suppressHydrationWarning
+        autoComplete="off"
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();

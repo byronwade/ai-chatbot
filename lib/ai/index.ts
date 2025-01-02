@@ -1,11 +1,17 @@
-import { openai } from '@ai-sdk/openai';
-import { experimental_wrapLanguageModel as wrapLanguageModel } from 'ai';
+import { ollama } from './ollama';
+import { getModel, type ModelId } from './models';
+import { logWithTimestamp } from '../utils';
 
-import { customMiddleware } from './custom-middleware';
-
-export const customModel = (apiIdentifier: string) => {
-  return wrapLanguageModel({
-    model: openai(apiIdentifier),
-    middleware: customMiddleware,
+export function customModel(modelId: ModelId) {
+  const model = getModel(modelId);
+  logWithTimestamp('[AI Info] Creating custom model:', { modelId });
+  logWithTimestamp('[AI Info] Using model:', { 
+    id: model.id,
+    name: model.name,
+    apiIdentifier: model.apiIdentifier
   });
-};
+  
+  return ollama(model.apiIdentifier);
+}
+
+export * from './models';

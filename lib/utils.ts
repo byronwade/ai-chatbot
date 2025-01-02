@@ -2,6 +2,7 @@ import type {
   CoreAssistantMessage,
   CoreMessage,
   CoreToolMessage,
+  CoreUserMessage,
   Message,
   ToolInvocation,
 } from 'ai';
@@ -44,9 +45,9 @@ export function getLocalStorage(key: string) {
 }
 
 export function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
 }
@@ -221,4 +222,15 @@ export function getMessageIdFromAnnotations(message: Message) {
 
   // @ts-expect-error messageIdFromServer is not defined in MessageAnnotation
   return annotation.messageIdFromServer;
+}
+
+export function logWithTimestamp(message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+}
+
+export async function generateTitleFromUserMessage({ message }: { message: CoreUserMessage }): Promise<string> {
+  // For now, just take the first few words of the message
+  const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
+  return content.split(' ').slice(0, 3).join(' ') + '...';
 }

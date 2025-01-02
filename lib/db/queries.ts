@@ -2,8 +2,9 @@ import 'server-only';
 
 import { genSaltSync, hashSync } from 'bcrypt-ts';
 import { and, asc, desc, eq, gt, gte } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
+import { nanoid } from 'nanoid';
 
 import {
   user,
@@ -18,19 +19,25 @@ import {
 } from './schema';
 import { BlockKind } from '@/components/block';
 
-// Optionally, if not using email/pass login, you can
-// use the Drizzle adapter for Auth.js / NextAuth
-// https://authjs.dev/reference/adapter/drizzle
+// Add logging utility
+function logWithTimestamp(message: string, data?: any) {
+  const timestamp = new Date().toISOString();
+  console.log(`[DB ${timestamp}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
+}
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
-const db = drizzle(client);
+const sqlite = new Database('sqlite.db');
+const db = drizzle(sqlite);
+
+logWithTimestamp('Database initialized');
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
-    return await db.select().from(user).where(eq(user.email, email));
+    logWithTimestamp('Getting user by email:', { email });
+    const users = await db.select().from(user).where(eq(user.email, email));
+    logWithTimestamp('User lookup result:', { found: users.length > 0 });
+    return users;
   } catch (error) {
-    console.error('Failed to get user from database');
+    logWithTimestamp('Failed to get user from database:', { error, email });
     throw error;
   }
 }
@@ -38,11 +45,19 @@ export async function getUser(email: string): Promise<Array<User>> {
 export async function createUser(email: string, password: string) {
   const salt = genSaltSync(10);
   const hash = hashSync(password, salt);
+  const userId = nanoid();
 
   try {
-    return await db.insert(user).values({ email, password: hash });
+    logWithTimestamp('Creating new user:', { email, userId });
+    const result = await db.insert(user).values({ 
+      id: userId,
+      email, 
+      password: hash 
+    });
+    logWithTimestamp('User created successfully:', { userId });
+    return result;
   } catch (error) {
-    console.error('Failed to create user in database');
+    logWithTimestamp('Failed to create user:', { error, email });
     throw error;
   }
 }
@@ -51,77 +66,138 @@ export async function saveChat({
   id,
   userId,
   title,
+  createdAt = new Date(),
 }: {
   id: string;
   userId: string;
   title: string;
+  createdAt?: Date;
 }) {
   try {
-    return await db.insert(chat).values({
+    logWithTimestamp('Saving chat:', { chatId: id, userId, title });
+    
+    // First check if user exists
+    const users = await db.select().from(user).where(eq(user.id, userId));
+    
+    // If user doesn't exist, create it
+    if (users.length === 0) {
+      logWithTimestamp('User not found, creating new user:', { userId });
+      await db.insert(user).values({
+        id: userId,
+        email: `${userId}@example.com`, // Temporary email
+        password: null // No password needed for this case
+      });
+    }
+    
+    const result = await db.insert(chat).values({
       id,
-      createdAt: new Date(),
+      createdAt,
       userId,
       title,
     });
+    logWithTimestamp('Chat saved successfully:', { chatId: id });
+    return result;
   } catch (error) {
-    console.error('Failed to save chat in database');
+    logWithTimestamp('Failed to save chat:', { error, chatId: id, userId });
     throw error;
   }
 }
 
 export async function deleteChatById({ id }: { id: string }) {
   try {
-    await db.delete(vote).where(eq(vote.chatId, id));
-    await db.delete(message).where(eq(message.chatId, id));
+    logWithTimestamp('Deleting chat and related data:', { chatId: id });
+    
+    // Delete votes first
+    const voteResult = await db.delete(vote).where(eq(vote.chatId, id));
+    logWithTimestamp('Deleted votes:', { chatId: id });
+    
+    // Delete messages
+    const messageResult = await db.delete(message).where(eq(message.chatId, id));
+    logWithTimestamp('Deleted messages:', { chatId: id });
+    
+    // Delete chat
+    const chatResult = await db.delete(chat).where(eq(chat.id, id));
+    logWithTimestamp('Deleted chat:', { chatId: id });
 
-    return await db.delete(chat).where(eq(chat.id, id));
+    return chatResult;
   } catch (error) {
-    console.error('Failed to delete chat by id from database');
+    logWithTimestamp('Failed to delete chat:', { error, chatId: id });
     throw error;
   }
 }
 
 export async function getChatsByUserId({ id }: { id: string }) {
   try {
-    return await db
+    logWithTimestamp('Getting chats for user:', { userId: id });
+    const chats = await db
       .select()
       .from(chat)
       .where(eq(chat.userId, id))
       .orderBy(desc(chat.createdAt));
+    logWithTimestamp('Retrieved chats:', { userId: id, count: chats.length });
+    return chats;
   } catch (error) {
-    console.error('Failed to get chats by user from database');
+    logWithTimestamp('Failed to get chats for user:', { error, userId: id });
     throw error;
   }
 }
 
 export async function getChatById({ id }: { id: string }) {
   try {
+    logWithTimestamp('Getting chat by ID:', { chatId: id });
     const [selectedChat] = await db.select().from(chat).where(eq(chat.id, id));
+    logWithTimestamp('Chat lookup result:', { 
+      chatId: id, 
+      found: !!selectedChat,
+      details: selectedChat ? {
+        title: selectedChat.title,
+        userId: selectedChat.userId,
+        createdAt: selectedChat.createdAt
+      } : null
+    });
     return selectedChat;
   } catch (error) {
-    console.error('Failed to get chat by id from database');
+    logWithTimestamp('Failed to get chat by ID:', { error, chatId: id });
     throw error;
   }
 }
 
 export async function saveMessages({ messages }: { messages: Array<Message> }) {
   try {
-    return await db.insert(message).values(messages);
+    logWithTimestamp('Saving messages:', { 
+      count: messages.length,
+      chatId: messages[0]?.chatId,
+      messageIds: messages.map(m => m.id)
+    });
+    const result = await db.insert(message).values(messages);
+    logWithTimestamp('Messages saved successfully');
+    return result;
   } catch (error) {
-    console.error('Failed to save messages in database', error);
+    logWithTimestamp('Failed to save messages:', { 
+      error, 
+      messageCount: messages.length,
+      chatId: messages[0]?.chatId 
+    });
     throw error;
   }
 }
 
 export async function getMessagesByChatId({ id }: { id: string }) {
   try {
-    return await db
+    logWithTimestamp('Getting messages for chat:', { chatId: id });
+    const messages = await db
       .select()
       .from(message)
       .where(eq(message.chatId, id))
       .orderBy(asc(message.createdAt));
+    logWithTimestamp('Retrieved messages:', { 
+      chatId: id, 
+      count: messages.length,
+      roles: messages.map(m => m.role)
+    });
+    return messages;
   } catch (error) {
-    console.error('Failed to get messages by chat id from database', error);
+    logWithTimestamp('Failed to get messages for chat:', { error, chatId: id });
     throw error;
   }
 }

@@ -97,7 +97,7 @@ export function DocumentPreview({
   if (!document) return <LoadingSkeleton />;
 
   return (
-    <div className="relative w-full cursor-pointer">
+    <div className="relative w-full cursor-pointer" suppressHydrationWarning>
       <HitboxLayer hitboxRef={hitboxRef} result={result} setBlock={setBlock} />
       <DocumentHeader
         title={document.title}

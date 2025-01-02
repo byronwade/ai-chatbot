@@ -50,6 +50,7 @@ const PurePreviewMessage = ({
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role={message.role}
+        suppressHydrationWarning
       >
         <div
           className={cn(
@@ -59,18 +60,19 @@ const PurePreviewMessage = ({
               'group-data-[role=user]/message:w-fit': mode !== 'edit',
             },
           )}
+          suppressHydrationWarning
         >
           {message.role === 'assistant' && (
-            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+            <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background" suppressHydrationWarning>
               <div className="translate-y-px">
                 <SparklesIcon size={14} />
               </div>
             </div>
           )}
 
-          <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-col gap-2 w-full" suppressHydrationWarning>
             {message.experimental_attachments && (
-              <div className="flex flex-row justify-end gap-2">
+              <div className="flex flex-row justify-end gap-2" suppressHydrationWarning>
                 {message.experimental_attachments.map((attachment) => (
                   <PreviewAttachment
                     key={attachment.url}
@@ -81,7 +83,7 @@ const PurePreviewMessage = ({
             )}
 
             {message.content && mode === 'view' && (
-              <div className="flex flex-row gap-2 items-start">
+              <div className="flex flex-row gap-2 items-start" suppressHydrationWarning>
                 {message.role === 'user' && !isReadonly && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -104,6 +106,7 @@ const PurePreviewMessage = ({
                     'bg-primary text-primary-foreground px-3 py-2 rounded-xl':
                       message.role === 'user',
                   })}
+                  suppressHydrationWarning
                 >
                   <Markdown>{message.content as string}</Markdown>
                 </div>
@@ -232,6 +235,7 @@ export const ThinkingMessage = () => {
       initial={{ y: 5, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
       data-role={role}
+      suppressHydrationWarning
     >
       <div
         className={cx(
@@ -240,13 +244,14 @@ export const ThinkingMessage = () => {
             'group-data-[role=user]/message:bg-muted': true,
           },
         )}
+        suppressHydrationWarning
       >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
+        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border" suppressHydrationWarning>
           <SparklesIcon size={14} />
         </div>
 
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex flex-col gap-4 text-muted-foreground">
+        <div className="flex flex-col gap-2 w-full" suppressHydrationWarning>
+          <div className="flex flex-col gap-4 text-muted-foreground" suppressHydrationWarning>
             Thinking...
           </div>
         </div>

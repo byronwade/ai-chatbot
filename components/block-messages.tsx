@@ -37,6 +37,7 @@ function PureBlockMessages({
     <div
       ref={messagesContainerRef}
       className="flex flex-col gap-4 h-full items-center overflow-y-scroll px-4 pt-20"
+      suppressHydrationWarning
     >
       {messages.map((message, index) => (
         <PreviewMessage
@@ -58,6 +59,7 @@ function PureBlockMessages({
       <div
         ref={messagesEndRef}
         className="shrink-0 min-w-[24px] min-h-[24px]"
+        suppressHydrationWarning
       />
     </div>
   );
