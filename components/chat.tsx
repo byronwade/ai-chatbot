@@ -54,18 +54,21 @@ export const Chat = memo(function Chat({
   const modelConfigInitialized = useRef(false);
 
   // Memoize chat configuration to prevent unnecessary re-renders
-  const chatConfig = useMemo(() => ({
-    id,
-    body: { 
-      chatId: id, 
-      modelId: selectedModelId,
-      // Add configuration to prevent multiple model initializations
-      cacheConfig: true
-    },
-    initialMessages,
-    streamProtocol: 'text' as const,
-    maxSteps: 10
-  }), [id, selectedModelId, initialMessages]);
+  const chatConfig = useMemo(
+		() => ({
+			id,
+			body: {
+				chatId: id,
+				modelId: selectedModelId,
+				// Add configuration to prevent multiple model initializations
+				cacheConfig: true,
+			},
+			initialMessages,
+			streamProtocol: "text" as const,
+			maxSteps: 25,
+		}),
+		[id, selectedModelId, initialMessages]
+  );
 
   const {
     messages,

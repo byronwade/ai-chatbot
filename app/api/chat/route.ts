@@ -9,6 +9,10 @@ import { eq, and } from "drizzle-orm";
 import { message } from "@/lib/db/schema";
 import { db } from "@/lib/db";
 
+// Force the route to be dynamic and allow streaming responses up to 30 seconds
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
 	try {
 		const json = await request.json();
@@ -69,18 +73,20 @@ export async function POST(request: Request) {
 
 		// Create agent and get response
 		const agent = new SEOAgent({ modelId: modelId as ModelId, chatId, userId: session.user.id });
-		const stream = await agent.chat(messages as CoreMessage[]);
+		const result = await agent.chat(messages as CoreMessage[]);
 
-		// Return streaming response
-		return stream.response;
+		// Update the assistant message with the response content
+		await db.update(message).set({ content: result.text }).where(eq(message.id, messageId));
+
+		// Return response with proper headers
+		return new Response(result.text, {
+			headers: {
+				"Content-Type": "text/plain; charset=utf-8",
+			},
+		});
 	} catch (error) {
 		console.error("Error in chat route:", error);
-		return new Response(
-			JSON.stringify({
-				error: error instanceof Error ? error.message : "An unexpected error occurred",
-			}),
-			{ status: 500 }
-		);
+		return new Response("Error processing chat", { status: 500 });
 	}
 }
 

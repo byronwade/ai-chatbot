@@ -9,9 +9,19 @@ export const tools = {
 		execute: async ({ url }: { url: string }) => {
 			console.log("[Tool:analyze] Executing analysis", { url });
 			return {
-				title: "Example Title",
-				description: "Example Description",
-				keywords: ["example", "keywords"],
+				url,
+				status: "success",
+				message: "Tool executed successfully",
+				analysis: {
+					seoScore: 85,
+					performance: "Good",
+					recommendations: ["Add more meta descriptions", "Improve header structure", "Optimize images"],
+					metrics: {
+						loadTime: "2.3s",
+						mobileOptimized: true,
+						sslEnabled: true,
+					},
+				},
 			};
 		},
 	},
