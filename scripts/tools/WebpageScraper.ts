@@ -1,564 +1,568 @@
-import * as cheerio from 'cheerio';
-import type { CheerioAPI } from 'cheerio';
-import type { Element as DomElement } from 'domhandler';
+import { JSDOM } from "jsdom";
+import axios from "axios";
 
-// Simple logging function
-const logWithTimestamp = (message: string, data?: any) => {
-	const timestamp = new Date().toISOString();
-	console.log(`[${timestamp}] ${message}`, data ? JSON.stringify(data, null, 2) : '');
-};
-
-interface ContentSection {
-	type: 'heading' | 'paragraph' | 'list' | 'code' | 'table';
-	content: string;
-	importance: number; // 1-10, higher means more important
-	context?: string; // parent heading or section
-}
-
-interface SEOAnalysis {
-	score: number;  // 0-100
-	title: {
-		length: number;
-		score: number;
-		suggestions: string[];
-	};
-	description: {
-		length: number;
-		score: number;
-		suggestions: string[];
-	};
-	headings: {
-		structure: string[];
-		score: number;
-		suggestions: string[];
-	};
-	content: {
-		wordCount: number;
-		readabilityScore: number;
-		keywordDensity: { [keyword: string]: number };
-		suggestions: string[];
-	};
-	structuredData: {
-		types: string[];
-		score: number;
-		suggestions: string[];
-		recommended: {
-			type: string;
-			data: any;
-		}[];
-	};
-	links: {
-		internal: number;
-		external: number;
-		broken: number;
-		score: number;
-		suggestions: string[];
-	};
-	images: {
-		withAlt: number;
-		withoutAlt: number;
-		score: number;
-		suggestions: string[];
-	};
-	performance: {
-		contentLength: number;
-		score: number;
-		suggestions: string[];
-	};
-}
-
-interface ScrapedPage {
+interface WebsiteContent {
 	url: string;
 	title: string;
 	description: string;
-	headings: string[];
-	sections: ContentSection[];
-	summary: string;
-	metadata: {
-		keywords?: string;
-		author?: string;
-		robots?: string;
-		[key: string]: string | undefined;
+	sourceCode: string;
+	analysis: {
+		content: {
+			headings: HeadingElement[];
+			text: TextElement[];
+			links: LinkElement[];
+			images: ImageElement[];
+			scripts: ScriptElement[];
+			styles: StyleElement[];
+			resources: ResourceElement[];
+		};
+		techStack: {
+			frameworks: TechFramework[];
+			styling: StyleFramework[];
+			libraries: Library[];
+			buildTools: string[];
+			meta: MetaInfo[];
+		};
 	};
-	images: { src: string; alt: string }[];
-	timestamp: string;
-	seoAnalysis: SEOAnalysis;
 }
 
-export class WebpageScraper {
-	private seen = new Set<string>();
-	private maxDepth: number;
-	private maxPages: number;
-	private readonly CHUNK_SIZE = 1000; // Characters per chunk
+interface HeadingElement {
+	text: string;
+	level: number;
+	path: string;
+}
 
-	constructor(maxDepth = 2, maxPages = 10) {
-		this.maxDepth = maxDepth;
-		this.maxPages = maxPages;
-	}
+interface TextElement {
+	content: string;
+	context: string;
+	path: string;
+	importance: number;
+}
 
-	async scrapeWebsite(url: string, userId: string, depth = 0): Promise<ScrapedPage> {
-		if (this.seen.has(url) || depth > this.maxDepth || this.seen.size >= this.maxPages) {
-			throw new Error('Scraping limits reached or URL already seen');
-		}
+interface LinkElement {
+	text: string;
+	href: string;
+	type: string;
+	context: string;
+}
 
-		logWithTimestamp('[WebpageScraper] Starting scrape:', { url, userId, depth });
-		this.seen.add(url);
+interface ImageElement {
+	src: string;
+	alt: string;
+	dimensions?: {
+		width: number;
+		height: number;
+	};
+	type: string;
+}
 
+interface ScriptElement {
+	src?: string;
+	type?: string;
+	content?: string;
+	purpose: string;
+}
+
+interface StyleElement {
+	href?: string;
+	content?: string;
+	framework?: string;
+}
+
+interface ResourceElement {
+	url: string;
+	type: string;
+	purpose: string;
+}
+
+interface TechFramework {
+	type: string;
+	name: string;
+	version?: string;
+	confidence: number;
+	evidence: string[];
+}
+
+interface StyleFramework {
+	type: string;
+	name: string;
+	version?: string;
+	purpose: string;
+	evidence: string[];
+}
+
+interface Library {
+	name: string;
+	version?: string;
+	purpose: string;
+}
+
+interface MetaInfo {
+	name: string;
+	content: string;
+	purpose: string;
+}
+
+interface SearchResult {
+	type: string;
+	content: any;
+	confidence: number;
+	explanation: string;
+}
+
+class WebpageScraper {
+	private websites: Map<string, WebsiteContent> = new Map();
+
+	async scrapeWebsite(url: string): Promise<WebsiteContent> {
 		try {
+			console.log(`🌐 Accessing: ${url}`);
 			const response = await fetch(url);
-			if (!response.ok) throw new Error(`Failed to fetch URL: ${response.statusText}`);
-
 			const html = await response.text();
-			const $ = cheerio.load(html);
+			console.log(`✅ Retrieved content`);
 
-			const metadata = this.extractMetadata($);
-			const sections = this.extractContentSections($);
-			const summary = this.generateSummary(sections);
-			const headings = this.extractHeadings($);
+			const dom = new JSDOM(html);
+			const document = dom.window.document;
+			console.log(`🔍 Processing DOM structure...`);
 
-			const result: ScrapedPage = {
-				url,
-				title: $('title').text().trim(),
-				description: metadata.description || '',
-				headings,
-				sections,
-				summary,
-				metadata,
-				images: this.extractImages($),
-				timestamp: new Date().toISOString(),
-				seoAnalysis: this.analyzeSEO($, {
-					title: $('title').text().trim(),
-					description: metadata.description,
-					headings,
-					sections
-				})
+			const content = {
+				headings: this.extractHeadings(document),
+				text: this.extractText(document),
+				links: this.extractLinks(document),
+				images: this.extractImages(document),
+				scripts: this.extractScripts(document),
+				styles: this.extractStyles(document),
+				resources: this.extractResources(document),
 			};
 
-			logWithTimestamp('[WebpageScraper] Scrape completed successfully:', { 
-				url,
-				sectionsFound: sections.length,
-				imagesFound: result.images.length,
-				seoScore: result.seoAnalysis.score
-			});
+			const techStack = this.analyzeTechStack(document, html);
 
-			return result;
+			const websiteContent: WebsiteContent = {
+				url,
+				title: document.title,
+				description: document.querySelector('meta[name="description"]')?.getAttribute("content") || "",
+				sourceCode: html,
+				analysis: {
+					content,
+					techStack,
+				},
+			};
+
+			this.websites.set(url, websiteContent);
+			return websiteContent;
 		} catch (error) {
-			logWithTimestamp('[WebpageScraper] Error during scrape:', { error, url });
+			console.error("❌ Access error:", error);
 			throw error;
 		}
 	}
 
-	private extractContentSections($: cheerio.CheerioAPI): ContentSection[] {
-		const sections: ContentSection[] = [];
-		let currentContext = '';
+	search(query: string): SearchResult[] {
+		console.log(`\n🔍 Searching: "${query}"`);
+		const results: SearchResult[] = [];
 
-		// Process main content areas first
-		const mainSelectors = ['main', 'article', '[role="main"]', '.content', '#content'];
-		let $content = $('body');
-
-		for (const selector of mainSelectors) {
-			const $selected = $(selector);
-			if ($selected.length) {
-				$content = $selected as cheerio.Cheerio<DomElement>;
-				break;
+		for (const website of this.websites.values()) {
+			// Tech stack specific queries
+			if (query.toLowerCase().includes("tech stack") || query.toLowerCase().includes("framework") || query.toLowerCase().includes("tailwind")) {
+				const techResults = this.handleTechStackQuery(query, website);
+				results.push(...techResults);
 			}
+
+			// Content queries
+			const contentResults = this.handleContentQuery(query, website);
+			results.push(...contentResults);
 		}
 
-		// Extract sections with context
-		$content.find('*').each((_, element) => {
-			if (!(element as DomElement).tagName) return;
-			
-			const $el = $(element);
-			const tagName = (element as DomElement).tagName.toLowerCase();
+		return results.sort((a, b) => b.confidence - a.confidence);
+	}
 
-			// Update context with headings
-			if (tagName.match(/^h[1-6]$/)) {
-				currentContext = $el.text().trim();
-				sections.push({
-					type: 'heading',
-					content: currentContext,
-					importance: 10 - parseInt(tagName[1]), // h1 = 9, h2 = 8, etc.
-					context: currentContext
+	private handleTechStackQuery(query: string, website: WebsiteContent): SearchResult[] {
+		const results: SearchResult[] = [];
+		const techStack = website.analysis.techStack;
+
+		// Check for specific tech
+		const techTerms = query.toLowerCase().split(" ");
+
+		// Check frameworks
+		techStack.frameworks.forEach((framework) => {
+			if (techTerms.some((term) => framework.name.toLowerCase().includes(term))) {
+				results.push({
+					type: "framework",
+					content: framework,
+					confidence: framework.confidence,
+					explanation: `Found framework "${framework.name}" with evidence: ${framework.evidence.join(", ")}`,
 				});
 			}
+		});
 
-			// Process different content types
-			else if (tagName === 'p') {
-				const text = $el.text().trim();
-				if (text.length > 0) {
-					sections.push({
-						type: 'paragraph',
-						content: text,
-						importance: this.calculateImportance(text),
-						context: currentContext
-					});
-				}
-			}
-			else if (tagName === 'pre' || tagName === 'code') {
-				const code = $el.text().trim();
-				if (code.length > 0) {
-					sections.push({
-						type: 'code',
-						content: code,
-						importance: 8, // Code samples are usually important
-						context: currentContext
-					});
-				}
-			}
-			else if (tagName === 'ul' || tagName === 'ol') {
-				const items = $el.find('li').map((_, li) => $(li).text().trim()).get();
-				if (items.length > 0) {
-					sections.push({
-						type: 'list',
-						content: items.join('\n'),
-						importance: 7,
-						context: currentContext
-					});
-				}
-			}
-			else if (tagName === 'table') {
-				const tableContent = this.extractTableContent($, $el);
-				if (tableContent.length > 0) {
-					sections.push({
-						type: 'table',
-						content: tableContent,
-						importance: 7,
-						context: currentContext
-					});
-				}
+		// Check styling frameworks
+		techStack.styling.forEach((style) => {
+			if (techTerms.some((term) => style.name.toLowerCase().includes(term))) {
+				results.push({
+					type: "styling",
+					content: style,
+					confidence: 0.9,
+					explanation: `Found styling framework "${style.name}" used for ${style.purpose}`,
+				});
 			}
 		});
 
-		return sections;
-	}
-
-	private calculateImportance(text: string): number {
-		let importance = 5; // Default importance
-
-		// Increase importance based on various factors
-		if (text.length > 200) importance += 1;
-		if (text.includes('important') || text.includes('note') || text.includes('warning')) importance += 2;
-		if (text.match(/\b(must|should|need|required)\b/i)) importance += 1;
-		if (text.match(/\b(example|e\.g\.|i\.e\.)\b/i)) importance += 1;
-
-		return Math.min(importance, 10);
-	}
-
-	private extractTableContent($: cheerio.CheerioAPI, $table: cheerio.Cheerio<DomElement>): string {
-		const rows: string[] = [];
-		$table.find('tr').each((_, row) => {
-			const cells = $(row).find('th, td')
-				.map((_, cell) => $(cell).text().trim())
-				.get();
-			rows.push(cells.join(' | '));
+		// Check libraries
+		techStack.libraries.forEach((library) => {
+			if (techTerms.some((term) => library.name.toLowerCase().includes(term))) {
+				results.push({
+					type: "library",
+					content: library,
+					confidence: 0.8,
+					explanation: `Found library "${library.name}" used for ${library.purpose}`,
+				});
+			}
 		});
-		return rows.join('\n');
+
+		// If no specific matches but asking about tech stack, return everything
+		if (results.length === 0 && query.toLowerCase().includes("tech stack")) {
+			results.push({
+				type: "tech-stack",
+				content: techStack,
+				confidence: 1,
+				explanation: "Complete technology stack analysis",
+			});
+		}
+
+		return results;
 	}
 
-	private generateSummary(sections: ContentSection[]): string {
-		// Get the most important sections
-		const importantSections = sections
-			.filter(s => s.importance >= 7)
-			.slice(0, 5)
-			.map(s => s.content)
-			.join('\n\n');
+	private handleContentQuery(query: string, website: WebsiteContent): SearchResult[] {
+		const results: SearchResult[] = [];
+		const content = website.analysis.content;
 
-		return importantSections;
+		// Search through headings
+		content.headings.forEach((heading) => {
+			if (heading.text.toLowerCase().includes(query.toLowerCase())) {
+				results.push({
+					type: "heading",
+					content: heading,
+					confidence: 1,
+					explanation: `Found matching heading: ${heading.text}`,
+				});
+			}
+		});
+
+		// Search through text content
+		content.text.forEach((text) => {
+			if (text.content.toLowerCase().includes(query.toLowerCase())) {
+				results.push({
+					type: "text",
+					content: text,
+					confidence: 0.8,
+					explanation: `Found matching text content in ${text.context}`,
+				});
+			}
+		});
+
+		// Search through links
+		content.links.forEach((link) => {
+			if (link.text.toLowerCase().includes(query.toLowerCase())) {
+				results.push({
+					type: "link",
+					content: link,
+					confidence: 0.9,
+					explanation: `Found matching link: ${link.text}`,
+				});
+			}
+		});
+
+		return results;
 	}
 
-	private extractMetadata($: cheerio.CheerioAPI): { [key: string]: string } {
-		const metadata: { [key: string]: string } = {};
-		$('meta').each((_, el) => {
-			const name = $(el).attr('name') || $(el).attr('property');
-			const content = $(el).attr('content');
+	getWebsite(url: string): WebsiteContent | undefined {
+		return this.websites.get(url);
+	}
+
+	clearCache(url: string) {
+		this.websites.delete(url);
+	}
+
+	private extractHeadings(document: Document): HeadingElement[] {
+		return Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6")).map((heading) => ({
+			text: heading.textContent?.trim() || "",
+			level: parseInt(heading.tagName[1]),
+			path: this.getElementPath(heading),
+		}));
+	}
+
+	private getElementPath(element: Element): string {
+		const path: string[] = [];
+		let current = element;
+
+		while (current && current !== document.documentElement) {
+			let selector = current.tagName.toLowerCase();
+			if (current.id) {
+				selector += `#${current.id}`;
+			} else if (current.classList.length > 0) {
+				selector += `.${Array.from(current.classList).join(".")}`;
+			}
+			path.unshift(selector);
+			current = current.parentElement as Element;
+		}
+
+		return path.join(" > ");
+	}
+
+	private extractLinks(document: Document): LinkElement[] {
+		return Array.from(document.querySelectorAll("a")).map((link) => ({
+			text: link.textContent?.trim() || "",
+			href: link.getAttribute("href") || "",
+			type: this.determineLinkType(link),
+			context: this.getLinkContext(link),
+		}));
+	}
+
+	private determineLinkType(link: Element): string {
+		if (link.closest("nav")) return "navigation";
+		if (link.closest("footer")) return "footer";
+		if (link.closest("header")) return "header";
+		return "content";
+	}
+
+	private getLinkContext(element: Element): string {
+		const section = element.closest('section, article, div[class*="section"]');
+		return section?.getAttribute("class") || "main";
+	}
+
+	private extractImages(document: Document): ImageElement[] {
+		return Array.from(document.querySelectorAll("img")).map((img) => ({
+			src: img.getAttribute("src") || "",
+			alt: img.getAttribute("alt") || "",
+			dimensions: img.width && img.height ? { width: img.width, height: img.height } : undefined,
+			type: this.determineImageType(img),
+		}));
+	}
+
+	private determineImageType(img: HTMLImageElement): string {
+		if (img.closest("header")) return "header";
+		if (img.closest("footer")) return "footer";
+		if (img.width > 800 || img.height > 600) return "hero";
+		if (img.width < 100 || img.height < 100) return "icon";
+		return "content";
+	}
+
+	private extractText(document: Document): TextElement[] {
+		const textElements: TextElement[] = [];
+		const textNodes = document.evaluate('//text()[normalize-space(.)!=""]', document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+
+		for (let i = 0; i < textNodes.snapshotLength; i++) {
+			const node = textNodes.snapshotItem(i);
+			if (node && node.parentElement) {
+				const element = node.parentElement;
+				if (!["script", "style"].includes(element.tagName.toLowerCase())) {
+					textElements.push({
+						content: node.textContent?.trim() || "",
+						context: this.getTextContext(element),
+						path: this.getElementPath(element),
+						importance: this.calculateTextImportance(element),
+					});
+				}
+			}
+		}
+
+		return textElements;
+	}
+
+	private getTextContext(element: Element): string {
+		const section = element.closest('section, article, main, div[class*="section"]');
+		return section?.getAttribute("class") || "main";
+	}
+
+	private calculateTextImportance(element: Element): number {
+		let importance = 0.5;
+
+		if (element.tagName.match(/^H[1-6]$/)) {
+			importance += 0.5 - (parseInt(element.tagName[1]) - 1) * 0.1;
+		}
+		if (element.tagName === "P") importance += 0.2;
+		if (element.closest("main")) importance += 0.1;
+		if (element.getAttribute("role")) importance += 0.1;
+
+		return Math.min(importance, 1);
+	}
+
+	private extractScripts(document: Document): ScriptElement[] {
+		return Array.from(document.querySelectorAll("script")).map((script) => ({
+			src: script.getAttribute("src") || undefined,
+			type: script.getAttribute("type") || undefined,
+			content: script.textContent || undefined,
+			purpose: script.getAttribute("data-purpose") || "unknown",
+		}));
+	}
+
+	private extractStyles(document: Document): StyleElement[] {
+		const styles: StyleElement[] = [];
+
+		document.querySelectorAll("style").forEach((style) => {
+			styles.push({
+				content: style.textContent || undefined,
+				framework: style.getAttribute("data-framework") || undefined,
+			});
+		});
+
+		document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+			styles.push({
+				href: link.getAttribute("href") || undefined,
+				framework: link.getAttribute("data-framework") || undefined,
+			});
+		});
+
+		return styles;
+	}
+
+	private extractResources(document: Document): ResourceElement[] {
+		const resources: ResourceElement[] = [];
+
+		document.querySelectorAll("img").forEach((img) => {
+			resources.push({
+				url: img.getAttribute("src") || "",
+				type: "image",
+				purpose: img.getAttribute("data-purpose") || "content",
+			});
+		});
+
+		document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+			resources.push({
+				url: link.getAttribute("href") || "",
+				type: "stylesheet",
+				purpose: link.getAttribute("data-purpose") || "styling",
+			});
+		});
+
+		document.querySelectorAll("script[src]").forEach((script) => {
+			resources.push({
+				url: script.getAttribute("src") || "",
+				type: "script",
+				purpose: script.getAttribute("data-purpose") || "functionality",
+			});
+		});
+
+		return resources;
+	}
+
+	private analyzeTechStack(
+		document: Document,
+		html: string
+	): {
+		frameworks: TechFramework[];
+		styling: StyleFramework[];
+		libraries: Library[];
+		buildTools: string[];
+		meta: MetaInfo[];
+	} {
+		const frameworks: TechFramework[] = [];
+		const styling: StyleFramework[] = [];
+		const libraries: Library[] = [];
+		const buildTools: string[] = [];
+		const meta: MetaInfo[] = [];
+
+		// Analyze meta tags
+		document.querySelectorAll("meta").forEach((metaTag) => {
+			const name = metaTag.getAttribute("name");
+			const content = metaTag.getAttribute("content");
 			if (name && content) {
-				metadata[name] = content;
-			}
-		});
-		return metadata;
-	}
-
-	private extractHeadings($: cheerio.CheerioAPI): string[] {
-		const headings: string[] = [];
-		$('h1, h2, h3, h4, h5, h6').each((_, el) => {
-			const text = $(el).text().trim();
-			if (text) headings.push(text);
-		});
-		return headings;
-	}
-
-	private extractImages($: cheerio.CheerioAPI): { src: string; alt: string }[] {
-		const images: { src: string; alt: string }[] = [];
-		$('img').each((_, el) => {
-			const src = $(el).attr('src');
-			const alt = $(el).attr('alt') || '';
-			if (src) images.push({ src, alt });
-		});
-		return images;
-	}
-
-	private analyzeSEO($: cheerio.CheerioAPI, page: Partial<ScrapedPage>): SEOAnalysis {
-		const title = page.title || '';
-		const description = page.description || '';
-		const headings = page.headings || [];
-		const content = page.sections?.map(s => s.content).join(' ') || '';
-		
-		const analysis: SEOAnalysis = {
-			score: 0,
-			title: this.analyzeTitleSEO(title),
-			description: this.analyzeDescriptionSEO(description),
-			headings: this.analyzeHeadingsSEO(headings),
-			content: this.analyzeContentSEO(content),
-			structuredData: this.analyzeStructuredData($),
-			links: this.analyzeLinksSEO($),
-			images: this.analyzeImagesSEO($),
-			performance: this.analyzePerformanceSEO(content)
-		};
-
-		// Calculate overall score
-		analysis.score = Math.round(
-			(analysis.title.score +
-			analysis.description.score +
-			analysis.headings.score +
-			analysis.links.score +
-			analysis.images.score +
-			analysis.performance.score) / 6
-		);
-
-		return analysis;
-	}
-
-	private analyzeTitleSEO(title: string) {
-		const score = {
-			length: title.length,
-			score: 0,
-			suggestions: [] as string[]
-		};
-
-		if (title.length < 30) {
-			score.score = 50;
-			score.suggestions.push("Title is too short (< 30 chars). Add more descriptive keywords.");
-		} else if (title.length > 60) {
-			score.score = 70;
-			score.suggestions.push("Title might be truncated in search results (> 60 chars).");
-		} else {
-			score.score = 100;
-		}
-
-		return score;
-	}
-
-	private analyzeDescriptionSEO(description: string) {
-		const score = {
-			length: description.length,
-			score: 0,
-			suggestions: [] as string[]
-		};
-
-		if (description.length < 120) {
-			score.score = 50;
-			score.suggestions.push("Meta description is too short (< 120 chars). Add more content.");
-		} else if (description.length > 155) {
-			score.score = 70;
-			score.suggestions.push("Meta description might be truncated (> 155 chars).");
-		} else {
-			score.score = 100;
-		}
-
-		return score;
-	}
-
-	private analyzeHeadingsSEO(headings: string[]) {
-		const score = {
-			structure: headings,
-			score: 0,
-			suggestions: [] as string[]
-		};
-
-		if (headings.length === 0) {
-			score.score = 0;
-			score.suggestions.push("No headings found. Add hierarchical headings for better structure.");
-		} else if (!headings.some(h => h.length > 0)) {
-			score.score = 50;
-			score.suggestions.push("Add more descriptive headings with keywords.");
-		} else {
-			score.score = 100;
-		}
-
-		return score;
-	}
-
-	private analyzeContentSEO(content: string) {
-		const words = content.split(/\s+/);
-		const wordCount = words.length;
-		
-		// Simple keyword density calculation
-		const keywordDensity: { [key: string]: number } = {};
-		words.forEach(word => {
-			word = word.toLowerCase();
-			if (word.length > 3) {  // Ignore small words
-				keywordDensity[word] = (keywordDensity[word] || 0) + 1;
+				meta.push({
+					name,
+					content,
+					purpose: this.determineMetaPurpose(name),
+				});
 			}
 		});
 
-		// Convert to percentages
-		Object.keys(keywordDensity).forEach(key => {
-			keywordDensity[key] = +(keywordDensity[key] / wordCount * 100).toFixed(2);
+		// Analyze scripts
+		document.querySelectorAll("script").forEach((script) => {
+			const src = script.getAttribute("src");
+			if (src) {
+				this.detectFramework(src, frameworks);
+				this.detectLibrary(src, libraries);
+			}
 		});
 
-		// Sort by frequency and get top keywords
-		const topKeywords = Object.entries(keywordDensity)
-			.sort(([,a], [,b]) => b - a)
-			.slice(0, 10)
-			.reduce((obj, [k, v]) => ({ ...obj, [k]: v }), {});
-
-		return {
-			wordCount,
-			readabilityScore: this.calculateReadabilityScore(content),
-			keywordDensity: topKeywords,
-			suggestions: this.generateContentSuggestions(wordCount, content)
-		};
-	}
-
-	private calculateReadabilityScore(text: string): number {
-		// Simplified Flesch Reading Ease score calculation
-		const words = text.split(/\s+/).length;
-		const sentences = text.split(/[.!?]+/).length;
-		const syllables = text.split(/[aeiou]+/i).length;
-
-		if (words === 0 || sentences === 0) return 0;
-
-		const wordsPerSentence = words / sentences;
-		const syllablesPerWord = syllables / words;
-
-		return Math.max(0, Math.min(100, 
-			206.835 - (1.015 * wordsPerSentence) - (84.6 * syllablesPerWord)
-		));
-	}
-
-	private generateContentSuggestions(wordCount: number, content: string): string[] {
-		const suggestions: string[] = [];
-
-		if (wordCount < 300) {
-			suggestions.push("Content is too short. Add more comprehensive information (aim for 300+ words).");
-		}
-		if (content.split(/[.!?]+/).some(s => s.split(/\s+/).length > 25)) {
-			suggestions.push("Some sentences are too long. Consider breaking them down for better readability.");
-		}
-		if (content.match(/\b(very|really|quite|basically|actually)\b/gi)) {
-			suggestions.push("Consider removing filler words to make content more concise.");
-		}
-
-		return suggestions;
-	}
-
-	private analyzeLinksSEO($: cheerio.CheerioAPI) {
-		const internal = $('a[href^="/"], a[href^="."], a[href^="#"]').length;
-		const external = $('a[href^="http"]').length;
-		
-		return {
-			internal,
-			external,
-			broken: 0, // Would require actual link checking
-			score: Math.min(100, Math.max(0, (internal + external) * 10)),
-			suggestions: this.generateLinkSuggestions(internal, external)
-		};
-	}
-
-	private generateLinkSuggestions(internal: number, external: number): string[] {
-		const suggestions: string[] = [];
-		
-		if (internal === 0) {
-			suggestions.push("Add internal links to improve site structure and user navigation.");
-		}
-		if (external === 0) {
-			suggestions.push("Consider adding relevant external links to authoritative sources.");
-		}
-		if (internal + external > 100) {
-			suggestions.push("High number of links detected. Ensure they're all relevant and valuable.");
-		}
-
-		return suggestions;
-	}
-
-	private analyzeImagesSEO($: cheerio.CheerioAPI) {
-		const withAlt = $('img[alt]').length;
-		const total = $('img').length;
-		const withoutAlt = total - withAlt;
-
-		return {
-			withAlt,
-			withoutAlt,
-			score: Math.round((withAlt / Math.max(total, 1)) * 100),
-			suggestions: this.generateImageSuggestions(withAlt, withoutAlt)
-		};
-	}
-
-	private generateImageSuggestions(withAlt: number, withoutAlt: number): string[] {
-		const suggestions: string[] = [];
-
-		if (withoutAlt > 0) {
-			suggestions.push(`Add alt text to ${withoutAlt} image(s) for better accessibility and SEO.`);
-		}
-		if (withAlt + withoutAlt === 0) {
-			suggestions.push("Consider adding relevant images to make content more engaging.");
-		}
-
-		return suggestions;
-	}
-
-	private analyzePerformanceSEO(content: string) {
-		const contentLength = content.length;
-		
-		return {
-			contentLength,
-			score: Math.min(100, Math.max(0, (contentLength > 100 ? 100 : contentLength))),
-			suggestions: this.generatePerformanceSuggestions(contentLength)
-		};
-	}
-
-	private generatePerformanceSuggestions(contentLength: number): string[] {
-		const suggestions: string[] = [];
-
-		if (contentLength > 50000) {
-			suggestions.push("Content is very long. Consider breaking it into multiple pages.");
-		}
-		if (contentLength < 1000) {
-			suggestions.push("Content might be too thin. Add more valuable information.");
-		}
-
-		return suggestions;
-	}
-
-	private analyzeStructuredData($: cheerio.CheerioAPI) {
-		const types: string[] = [];
-		const recommended: { type: string; data: any }[] = [];
-
-		$('script[type="application/ld+json"]').each((_, el) => {
-			const script = $(el).html();
-			if (script) {
-				try {
-					const data = JSON.parse(script);
-					if (data['@type']) {
-						types.push(data['@type']);
-					}
-					if (data['@recommended']) {
-						recommended.push({
-							type: data['@recommended'],
-							data: data['@recommended']
-						});
-					}
-				} catch (error) {
-					console.error('Error parsing structured data:', error);
-				}
+		// Analyze styles
+		document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+			const href = link.getAttribute("href");
+			if (href) {
+				this.detectStyleFramework(href, styling);
 			}
 		});
 
 		return {
-			types,
-			score: 0,
-			suggestions: [],
-			recommended
+			frameworks,
+			styling,
+			libraries,
+			buildTools,
+			meta,
 		};
+	}
+
+	private determineMetaPurpose(name: string): string {
+		if (name.includes("description")) return "SEO";
+		if (name.includes("keywords")) return "SEO";
+		if (name.includes("viewport")) return "Responsive";
+		if (name.includes("robots")) return "Crawling";
+		if (name.includes("author")) return "Attribution";
+		return "Other";
+	}
+
+	private detectFramework(src: string, frameworks: TechFramework[]): void {
+		const frameworkPatterns = {
+			React: /react(-dom)?\.(?:production|development)\.min\.js$/,
+			"Vue.js": /vue(@[0-9]+)?\.(?:runtime|common)\.js$/,
+			Angular: /angular(?:\.min)?\.js$/,
+			"Next.js": /_next\/static/,
+		};
+
+		for (const [name, pattern] of Object.entries(frameworkPatterns)) {
+			if (pattern.test(src)) {
+				frameworks.push({
+					type: "frontend",
+					name,
+					confidence: 0.9,
+					evidence: [src],
+				});
+			}
+		}
+	}
+
+	private detectStyleFramework(href: string, styling: StyleFramework[]): void {
+		const stylePatterns = {
+			"Tailwind CSS": /tailwind/,
+			Bootstrap: /bootstrap/,
+			"Material UI": /material/,
+			Foundation: /foundation/,
+		};
+
+		for (const [name, pattern] of Object.entries(stylePatterns)) {
+			if (pattern.test(href)) {
+				styling.push({
+					type: "css",
+					name,
+					purpose: "styling",
+					evidence: [href],
+				});
+			}
+		}
+	}
+
+	private detectLibrary(src: string, libraries: Library[]): void {
+		const libraryPatterns = {
+			jQuery: /jquery/,
+			Lodash: /lodash/,
+			"Moment.js": /moment/,
+			Axios: /axios/,
+		};
+
+		for (const [name, pattern] of Object.entries(libraryPatterns)) {
+			if (pattern.test(src)) {
+				libraries.push({
+					name,
+					purpose: "utility",
+				});
+			}
+		}
 	}
 }

@@ -10,9 +10,12 @@ export type ModelId =
 	| "gpt-4-turbo"
 	| "gpt-4"
 	| "gpt-3.5-turbo"
-	| "gpt-4-vision";
+	| "gpt-4-vision"
+	// Google Models
+	| "gemini-1.5-flash"
+	| "gemini-1.5-pro";
 
-export const DEFAULT_MODEL_NAME = "gpt-3.5-turbo";
+export const DEFAULT_MODEL_NAME = "gemini-1.5-flash";
 
 export interface AIModel {
 	id: ModelId;
@@ -20,7 +23,7 @@ export interface AIModel {
 	apiIdentifier: string;
 	endpoint: string;
 	description: string;
-	provider: "ollama" | "openai";
+	provider: "ollama" | "openai" | "google";
 	supportsTools?: boolean;
 	supportsVision?: boolean;
 	maxTokens?: number;
@@ -68,6 +71,27 @@ export const models: AIModel[] = [
 		supportsTools: true,
 		supportsVision: true,
 		maxTokens: 128000,
+	},
+	// Google Models
+	{
+		id: "gemini-1.5-flash",
+		name: "Gemini 1.5 Flash",
+		apiIdentifier: "gemini-1.5-flash-latest",
+		endpoint: "https://generativelanguage.googleapis.com/v1beta",
+		description: "Fast and efficient model optimized for quick responses and tool use",
+		provider: "google",
+		supportsTools: true,
+		maxTokens: 32768,
+	},
+	{
+		id: "gemini-1.5-pro",
+		name: "Gemini 1.5 Pro",
+		apiIdentifier: "gemini-1.5-pro-latest",
+		endpoint: "https://generativelanguage.googleapis.com/v1beta",
+		description: "Most capable Gemini model for complex tasks and reasoning",
+		provider: "google",
+		supportsTools: true,
+		maxTokens: 32768,
 	},
 	// Ollama Models with Tool Support
 	{
