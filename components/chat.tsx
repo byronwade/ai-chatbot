@@ -49,6 +49,16 @@ export const Chat = memo(function Chat({ id, initialMessages, selectedModelId, s
 			initialMessages,
 			api: "/api/chat",
 			experimental_streamData: false,
+			streamProtocol: "text" as const,
+			onResponse: (response: Response) => {
+				// Log the response for debugging
+				response
+					.clone()
+					.text()
+					.then((data) => {
+						logWithTimestamp("[Chat] Response received:", data);
+					});
+			},
 			onFinish: (message: Message) => {
 				logWithTimestamp("[Chat] Finished processing message:", {
 					chatId: id,

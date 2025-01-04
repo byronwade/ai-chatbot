@@ -5,6 +5,12 @@ import { generateText, type CoreMessage } from "ai";
 import { tools } from "./tools/index";
 import { getModel, type ModelId, type AIModel } from "./models";
 
+interface ToolResult {
+	toolName: string;
+	args: Record<string, unknown>;
+	result: unknown;
+}
+
 export interface SEOAgentOptions {
 	modelId: string;
 	chatId: string;
@@ -29,6 +35,9 @@ export class SEOAgent {
 
 			console.log("Filtered messages:", JSON.stringify(filteredMessages, null, 2));
 
+			let finalText = "";
+			const toolResults: ToolResult[] = [];
+
 			const result = await generateText({
 				model: this.getProviderModel(),
 				messages: [
@@ -37,7 +46,25 @@ export class SEOAgent {
 						content: `You are an SEO expert assistant. You have access to powerful tools that you must use to provide accurate information:
 
 1. ALWAYS use the analyze tool when asked about a website
-2. ALWAYS use the generateBlogPost tool when asked to write content
+2. When asked to write a blog post, ALWAYS use the generateBlogPost tool like this:
+   generateBlogPost({
+     topic: "your topic here",
+     requirements: {
+       targetWordCount: 1500,
+       minSections: 4,
+       keywordsPerSection: 5,
+       sourcesPerSection: 2,
+       style: "professional",  // Must be one of: "academic", "conversational", "technical", "professional"
+       tone: "balanced",      // Must be one of: "formal", "informal", "balanced"
+       audience: "intermediate", // Must be one of: "beginner", "intermediate", "advanced", "expert"
+       seoOptimization: true,
+       plagiarismCheck: true,
+       humanReadability: true,
+       includeImages: false,
+       includeStats: true,
+       includeExamples: true
+     }
+   })
 3. ALWAYS use the crawlWebsite tool for deep website analysis
 4. ALWAYS use the getTechStack tool when asked about technologies
 5. NEVER make up data or statistics - only use data from tool results
@@ -61,20 +88,40 @@ Remember: You must NEVER make up information. Only use data returned by the tool
 				toolChoice: "auto",
 				maxSteps: 25,
 				temperature: 0.7,
-				onStepFinish({ text, toolCalls, toolResults }) {
+				onStepFinish(step) {
+					if (step.text) {
+						finalText = step.text;
+					}
+					if (step.toolResults) {
+						toolResults.push(...(step.toolResults as ToolResult[]));
+					}
 					console.log("Step completed:", {
-						text: text || "[No text yet]",
+						text: step.text || "[No text yet]",
 						toolCalls:
-							toolCalls?.map((t) => ({
+							step.toolCalls?.map((t) => ({
 								name: t.toolName,
 								args: t.args,
 							})) || [],
-						results: toolResults || [],
+						results: step.toolResults || [],
 					});
 				},
 			});
 
-			return result;
+			// Format the response with tool results if any
+			const content = toolResults.length > 0 ? `${finalText || result.text}\n\nTool Results:\n\`\`\`json\n${JSON.stringify(toolResults, null, 2)}\n\`\`\`` : finalText || result.text;
+
+			// Return the response in the format expected by useChat
+			return {
+				role: "assistant" as const,
+				content,
+				function_call:
+					toolResults.length > 0
+						? {
+								name: toolResults[0].toolName,
+								arguments: JSON.stringify(toolResults[0].args),
+						  }
+						: undefined,
+			};
 		} catch (error: unknown) {
 			console.error("Error in chat:", error);
 			// If it's a Google API error, try to provide more specific error information

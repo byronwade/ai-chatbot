@@ -1,17 +1,19 @@
 import { auth } from '@/app/(auth)/auth';
-import { logWithTimestamp } from '@/lib/utils';
-import { type CoreMessage, generateText } from "ai";
+import { type CoreMessage } from "ai";
 import { getModel, type ModelId } from "@/lib/ai/models";
 import { SEOAgent } from "@/lib/ai/agent";
 import { saveMessages, deleteChatById, saveChat } from "@/lib/db/queries";
 import { generateId } from "ai";
-import { eq, and } from "drizzle-orm";
-import { message } from "@/lib/db/schema";
-import { db } from "@/lib/db";
 
 // Force the route to be dynamic
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
+
+function getErrorMessage(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	if (typeof error === "string") return error;
+	return "An unexpected error occurred";
+}
 
 export async function POST(request: Request) {
 	try {
@@ -62,34 +64,42 @@ export async function POST(request: Request) {
 		const result = await agent.chat(messages as CoreMessage[]);
 
 		// Save assistant message
+		const assistantMessage = {
+			id: messageId,
+			chatId,
+			content: result.content,
+			role: "assistant",
+			createdAt: new Date(),
+			userId: session.user.id,
+		};
+
 		await saveMessages({
-			messages: [
-				{
-					id: messageId,
-					chatId,
-					content: result.text,
-					role: "assistant",
-					createdAt: new Date(),
-					userId: session.user.id,
-				},
-			],
+			messages: [assistantMessage],
 		});
 
-		// Return response in the format expected by useChat
-		return Response.json({
-			id: messageId,
-			role: "assistant",
-			content: result.text,
-			createdAt: new Date().toISOString(),
+		// Create a text encoder
+		const encoder = new TextEncoder();
+
+		// Create a stream from the result
+		const stream = new ReadableStream({
+			start(controller) {
+				// Send the message content
+				controller.enqueue(encoder.encode(result.content));
+				controller.close();
+			},
+		});
+
+		// Return streaming response
+		return new Response(stream, {
+			headers: {
+				"Content-Type": "text/plain; charset=utf-8",
+				"Cache-Control": "no-cache",
+				Connection: "keep-alive",
+			},
 		});
 	} catch (error) {
 		console.error("Error in chat route:", error);
-		return new Response(JSON.stringify({ error: "Error processing chat" }), {
-			status: 500,
-			headers: {
-				"Content-Type": "application/json",
-			},
-		});
+		return Response.json({ error: getErrorMessage(error) }, { status: 500 });
 	}
 }
 
@@ -114,11 +124,6 @@ export async function DELETE(request: Request) {
 		return new Response(null, { status: 204 });
 	} catch (error) {
 		console.error("Error in chat route:", error);
-		return new Response(JSON.stringify({ error: "Error deleting chat" }), {
-			status: 500,
-			headers: {
-				"Content-Type": "application/json",
-			},
-		});
+		return Response.json({ error: "Error deleting chat" }, { status: 500 });
 	}
 } 
